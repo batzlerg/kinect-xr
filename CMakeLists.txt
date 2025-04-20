@@ -18,7 +18,7 @@ find_library(LIBFREENECT_LIBRARY freenect)
 find_path(LIBFREENECT_INCLUDE_DIR libfreenect/libfreenect.h)
 
 if(NOT LIBFREENECT_LIBRARY OR NOT LIBFREENECT_INCLUDE_DIR)
-    message(FATAL_ERROR "libfreenect not found. Please install it first.")
+  message(FATAL_ERROR "libfreenect not found. Please install it first.")
 endif()
 
 message(STATUS "Found libfreenect: ${LIBFREENECT_LIBRARY}")
