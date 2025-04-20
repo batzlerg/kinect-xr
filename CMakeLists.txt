@@ -26,3 +26,38 @@ message(STATUS "Found libfreenect: ${LIBFREENECT_LIBRARY}")
 # targets
 target_include_directories(kinect_test PRIVATE ${LIBFREENECT_INCLUDE_DIR})
 target_link_libraries(kinect_test PRIVATE ${LIBFREENECT_LIBRARY})
+
+# tests
+enable_testing()
+
+include(FetchContent)
+FetchContent_Declare(
+  googletest
+  GIT_REPOSITORY https://github.com/google/googletest.git
+  GIT_TAG v1.13.0
+)
+
+
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE) # cargo-culting this Windows-only config from docs
+FetchContent_MakeAvailable(googletest)
+
+add_executable(kinect_xr_tests
+  tests/test_main.cpp
+)
+
+target_link_libraries(kinect_xr_tests
+  PRIVATE
+  gtest
+  gtest_main
+  ${LIBFREENECT_LIBRARY}
+)
+
+target_include_directories(kinect_xr_tests
+  PRIVATE
+  ${LIBFREENECT_INCLUDE_DIR}
+)
+
+add_test(
+  NAME KinectXRTests
+  COMMAND kinect_xr_tests
+)

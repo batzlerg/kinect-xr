@@ -44,3 +44,9 @@ Build:
 ```
 cmake --build build
 ```
+
+## Troubleshooting
+
+If you encounter issues on Mac with Google Test during build, you should verify that you don't have `googletest` installed via Homebrew. I ran into issues with this during initial testing setup, and resolved with `brew uninstall googletest`.
+
+If you need to keep Google Test installed via Homebrew for other projects, you will need to configure CMake to ignore the system installation and use the bundled version. I didn't need it for other purposes, so I didn't go all the way down that rabbit hole.
