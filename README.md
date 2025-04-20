@@ -37,7 +37,7 @@ It may take me until the WebXR proposal is approved and implemented in 3025 to f
 
 First time setup:
 ```
-cmake -B build -S .`
+cmake -B build -S .
 ```
 
 Build:
