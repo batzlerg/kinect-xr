@@ -31,8 +31,12 @@
 *.out
 *.app
 
+# build
+build/
+
 # notes
 _/
 
-# OS
+# user
 .DS_Store
+.vscode
