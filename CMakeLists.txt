@@ -1,5 +1,4 @@
 cmake_minimum_required(VERSION 4.0)
-
 project(KinectXR VERSION 0.1.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -23,11 +22,12 @@ endif()
 
 message(STATUS "Found libfreenect: ${LIBFREENECT_LIBRARY}")
 
-# targets
+# main executable
 target_include_directories(kinect_test PRIVATE ${LIBFREENECT_INCLUDE_DIR})
 target_link_libraries(kinect_test PRIVATE ${LIBFREENECT_LIBRARY})
 
 # tests
+set(CMAKE_CTEST_ARGUMENTS "--output-on-failure" "--verbose")
 enable_testing()
 
 include(FetchContent)
@@ -36,28 +36,56 @@ FetchContent_Declare(
   GIT_REPOSITORY https://github.com/google/googletest.git
   GIT_TAG v1.13.0
 )
-
-
-set(gtest_force_shared_crt ON CACHE BOOL "" FORCE) # cargo-culting this Windows-only config from docs
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
-add_executable(kinect_xr_tests
-  tests/test_main.cpp
+# unit tests
+add_executable(unit_tests
+  tests/unit/unit_test_main.cpp
 )
 
-target_link_libraries(kinect_xr_tests
+target_link_libraries(unit_tests
   PRIVATE
   gtest
-  gtest_main
   ${LIBFREENECT_LIBRARY}
 )
 
-target_include_directories(kinect_xr_tests
+target_include_directories(unit_tests
   PRIVATE
   ${LIBFREENECT_INCLUDE_DIR}
 )
 
 add_test(
-  NAME KinectXRTests
-  COMMAND kinect_xr_tests
+  NAME UnitTests
+  COMMAND unit_tests
+)
+
+set_tests_properties(UnitTests PROPERTIES LABELS "unit")
+
+# integration tests
+add_executable(integration_tests
+  tests/integration/integration_test_main.cpp
+  tests/integration/device_integration_test.cpp
+)
+
+target_link_libraries(integration_tests
+  PRIVATE
+  gtest
+  ${LIBFREENECT_LIBRARY}
+)
+
+target_include_directories(integration_tests
+  PRIVATE
+  ${LIBFREENECT_INCLUDE_DIR}
+  ${CMAKE_CURRENT_SOURCE_DIR}/tests
+)
+
+add_test(
+  NAME IntegrationTests
+  COMMAND integration_tests
+)
+
+set_tests_properties(IntegrationTests
+  PROPERTIES LABELS "integration"
+  SKIP_RETURN_CODE 77 # "skipped test" return code
 )
