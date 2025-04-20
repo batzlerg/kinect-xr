@@ -32,3 +32,15 @@ Browser:    WebXR-compatible Applications
 ```
 
 It may take me until the WebXR proposal is approved and implemented in 3025 to finish this project, but if not there's a cool ([polyfill](https://github.com/immersive-web/webxr-polyfill)) lib.
+
+## Building the project
+
+First time setup:
+```
+cmake -B build -S .`
+```
+
+Build:
+```
+cmake --build build
+```
