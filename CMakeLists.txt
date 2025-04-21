@@ -27,8 +27,6 @@ message(STATUS "Found libfreenect: ${LIBFREENECT_LIBRARY}")
 target_include_directories(kinect_xr_runtime PRIVATE ${LIBFREENECT_INCLUDE_DIR})
 target_link_libraries(kinect_xr_runtime PRIVATE ${LIBFREENECT_LIBRARY})
 
-include_directories(${CMAKE_SOURCE_DIR}/include)
-
 add_library(kinect_xr_device
   src/device.cpp
 )
