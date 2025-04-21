@@ -12,3 +12,12 @@ TEST(KinectDeviceUnitTest, ErrorToString) {
 }
 
 TEST(KinectDeviceUnitTest, ConstructionDestruction) { KinectDevice device; }
+
+TEST(KinectDeviceUnitTest, DeviceCount) {
+  int count = KinectDevice::getDeviceCount();
+
+  // we don't know how many, but the count shouldn't be negative
+  EXPECT_GE(count, 0);
+
+  std::cout << "Found " << count << " Kinect device(s)" << std::endl;
+}

@@ -20,6 +20,11 @@ class KinectDevice {
  public:
   KinectDevice();
   ~KinectDevice();
+  /**
+   * @brief Get count of available devices
+   * @return int Number of connected Kinect devices
+   */
+  static int getDeviceCount();
 };
 
 }  // namespace kinect_xr
