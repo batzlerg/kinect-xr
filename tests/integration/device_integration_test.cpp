@@ -1,6 +1,24 @@
 #include <gtest/gtest.h>
 #include <libfreenect/libfreenect.h>
 
+#include <memory>
+
+#include "kinect_xr/device.h"
+
+using namespace kinect_xr;
+
+/**
+ * @brief Test fixture for Kinect device testing
+ */
+class KinectDeviceTest : public ::testing::Test {
+ protected:
+  void SetUp() override { device = std::make_unique<KinectDevice>(); }
+
+  void TearDown() override { device.reset(); }
+
+  std::unique_ptr<KinectDevice> device;
+};
+
 /**
  * @brief Test that verifies if Kinect hardware is properly detected
  */
@@ -37,4 +55,18 @@ TEST(KinectHardwareTest, OpenKinectDevice) {
     freenect_close_device(dev);
   }
   freenect_shutdown(ctx);
+}
+
+/**
+ * @brief Test device initialization
+ */
+TEST_F(KinectDeviceTest, Initialize) {
+  DeviceConfig config;
+  config.enableRGB = true;
+  config.enableDepth = true;
+
+  DeviceError result = device->initialize(config);
+
+  EXPECT_EQ(result, DeviceError::None);
+  EXPECT_TRUE(device->isInitialized());
 }

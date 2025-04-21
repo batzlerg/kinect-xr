@@ -1,5 +1,6 @@
 add_executable(integration_tests
   integration_test_main.cpp
+  device_integration_test.cpp
 )
 
 target_link_libraries(integration_tests
@@ -7,6 +8,7 @@ target_link_libraries(integration_tests
   gtest
   gtest_main
   ${LIBFREENECT_LIBRARY}
+  kinect_xr_device
 )
 
 target_include_directories(integration_tests
