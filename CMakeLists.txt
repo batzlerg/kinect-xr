@@ -39,54 +39,6 @@ FetchContent_Declare(
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
-# unit tests
-add_executable(unit_tests
-  tests/unit/unit_test_main.cpp
-  tests/unit/libfreenect_test.cpp
-)
 
-target_link_libraries(unit_tests
-  PRIVATE
-  gtest
-  ${LIBFREENECT_LIBRARY}
-)
-
-target_include_directories(unit_tests
-  PRIVATE
-  ${LIBFREENECT_INCLUDE_DIR}
-)
-
-add_test(
-  NAME UnitTests
-  COMMAND unit_tests
-)
-
-set_tests_properties(UnitTests PROPERTIES LABELS "unit")
-
-# integration tests
-add_executable(integration_tests
-  tests/integration/integration_test_main.cpp
-  tests/integration/device_integration_test.cpp
-)
-
-target_link_libraries(integration_tests
-  PRIVATE
-  gtest
-  ${LIBFREENECT_LIBRARY}
-)
-
-target_include_directories(integration_tests
-  PRIVATE
-  ${LIBFREENECT_INCLUDE_DIR}
-  ${CMAKE_CURRENT_SOURCE_DIR}/tests
-)
-
-add_test(
-  NAME IntegrationTests
-  COMMAND integration_tests
-)
-
-set_tests_properties(IntegrationTests
-  PROPERTIES LABELS "integration"
-  SKIP_RETURN_CODE 77 # "skipped test" return code
-)
+# tests (delegated to child CMakeListses)
+add_subdirectory(tests)
