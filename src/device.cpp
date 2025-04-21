@@ -27,6 +27,26 @@ KinectDevice::KinectDevice() {}
 
 KinectDevice::~KinectDevice() {}
 
+DeviceError KinectDevice::initialize(const DeviceConfig& config) {
+  if (initialized_) {
+    return DeviceError::None;
+  }
+
+  // store configuration
+  config_ = config;
+
+  if (getDeviceCount() == 0) {
+    return DeviceError::DeviceNotFound;
+  }
+
+  // todo: actually initialize
+  // for now, just mark as initialized
+  initialized_ = true;
+  return DeviceError::None;
+}
+
+bool KinectDevice::isInitialized() const { return initialized_; }
+
 int KinectDevice::getDeviceCount() {
   freenect_context* ctx = nullptr;
   if (freenect_init(&ctx, nullptr) < 0) {
