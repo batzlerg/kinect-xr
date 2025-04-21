@@ -10,7 +10,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
-add_executable(kinect_test src/kinect_test.cpp)
+add_executable(kinect_xr_runtime src/kinect_xr_runtime.cpp)
 
 # libfreenect
 find_library(LIBFREENECT_LIBRARY freenect)
@@ -22,9 +22,33 @@ endif()
 
 message(STATUS "Found libfreenect: ${LIBFREENECT_LIBRARY}")
 
-# main executable
-target_include_directories(kinect_test PRIVATE ${LIBFREENECT_INCLUDE_DIR})
-target_link_libraries(kinect_test PRIVATE ${LIBFREENECT_LIBRARY})
+
+# main
+target_include_directories(kinect_xr_runtime PRIVATE ${LIBFREENECT_INCLUDE_DIR})
+target_link_libraries(kinect_xr_runtime PRIVATE ${LIBFREENECT_LIBRARY})
+
+include_directories(${CMAKE_SOURCE_DIR}/include)
+
+add_library(kinect_xr_device
+  src/device.cpp
+)
+
+target_include_directories(kinect_xr_device
+  PUBLIC
+  ${CMAKE_SOURCE_DIR}/include
+  PRIVATE
+  ${LIBFREENECT_INCLUDE_DIR}
+)
+
+target_link_libraries(kinect_xr_device
+  PRIVATE
+  ${LIBFREENECT_LIBRARY}
+)
+
+target_link_libraries(kinect_xr_runtime
+  PRIVATE
+  kinect_xr_device
+)
 
 # tests
 set(CMAKE_CTEST_ARGUMENTS "--output-on-failure" "--verbose")
@@ -39,6 +63,4 @@ FetchContent_Declare(
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
-
-# tests (delegated to child CMakeListses)
 add_subdirectory(tests)
