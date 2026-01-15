@@ -70,3 +70,35 @@ TEST_F(KinectDeviceTest, Initialize) {
   EXPECT_EQ(result, DeviceError::None);
   EXPECT_TRUE(device->isInitialized());
 }
+
+/**
+ * @brief Test starting and stopping streams
+ */
+TEST_F(KinectDeviceTest, StartAndStopStreams) {
+  // Skip if no device connected
+  if (KinectDevice::getDeviceCount() == 0) {
+    GTEST_SKIP() << "No Kinect device connected, skipping test";
+  }
+
+  DeviceConfig config;
+  config.enableRGB = true;
+  config.enableDepth = true;
+
+  // Initialize
+  ASSERT_EQ(device->initialize(config), DeviceError::None);
+  ASSERT_TRUE(device->isInitialized());
+
+  // Initially not streaming
+  EXPECT_FALSE(device->isStreaming());
+
+  // Start streams
+  EXPECT_EQ(device->startStreams(), DeviceError::None);
+  EXPECT_TRUE(device->isStreaming());
+
+  // Give some time for frames to arrive
+  std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
+  // Stop streams
+  EXPECT_EQ(device->stopStreams(), DeviceError::None);
+  EXPECT_FALSE(device->isStreaming());
+}
