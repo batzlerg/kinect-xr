@@ -39,3 +39,6 @@ _/
 
 # user
 .DS_Store
+
+# ephemeral
+tmp/
