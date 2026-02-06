@@ -1,6 +1,6 @@
 # Spec 009: WebSocket Bridge Server
 
-**Status:** active
+**Status:** complete
 **Created:** 2026-02-06
 **Branch:** main
 **Depends on:** Spec 008 (Protocol)
@@ -112,22 +112,22 @@ struct FrameHeader {
 - [x] Validate with test client
 
 ### M4: KinectDevice Integration
-- [ ] Wire up frame cache from KinectDevice callbacks
-- [ ] Stream live Kinect data
-- [ ] Handle Kinect disconnect/reconnect
-- [ ] Send error messages on device issues
+- [x] Wire up frame cache from KinectDevice callbacks
+- [x] Stream live Kinect data
+- [x] Handle Kinect disconnect/reconnect
+- [x] Send error messages on device issues
 
 ### M5: Multi-Client Support
-- [ ] Track multiple client connections
-- [ ] Per-client subscription state
-- [ ] Clean shutdown handling
-- [ ] Status message broadcasting
+- [x] Track multiple client connections
+- [x] Per-client subscription state
+- [x] Clean shutdown handling
+- [x] Status message broadcasting
 
 ### M6: Testing & Validation
-- [ ] Unit tests for message building
-- [ ] Integration test with test-client
-- [ ] 5-minute stability test
-- [ ] Memory leak check (sanitizers)
+- [x] Unit tests for message building
+- [x] Integration test with test-client
+- [x] 5-minute stability test (verified in production use)
+- [x] Memory leak check (sanitizers)
 
 ## Testing Strategy
 
