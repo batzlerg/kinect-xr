@@ -71,20 +71,21 @@ TEST_F(SwapchainTest, EnumerateFormats_CountQuery) {
     uint32_t formatCount = 0;
     XrResult result = KinectXRRuntime::getInstance().enumerateSwapchainFormats(session_, 0, &formatCount, nullptr);
     EXPECT_EQ(result, XR_SUCCESS);
-    EXPECT_EQ(formatCount, 1u);  // Only BGRA8Unorm
+    EXPECT_EQ(formatCount, 2u);  // BGRA8Unorm + R16Uint
 }
 
 TEST_F(SwapchainTest, EnumerateFormats_GetFormats) {
     uint32_t formatCount = 0;
     XrResult result = KinectXRRuntime::getInstance().enumerateSwapchainFormats(session_, 0, &formatCount, nullptr);
     ASSERT_EQ(result, XR_SUCCESS);
-    ASSERT_EQ(formatCount, 1u);
+    ASSERT_EQ(formatCount, 2u);
 
-    int64_t format = 0;
-    result = KinectXRRuntime::getInstance().enumerateSwapchainFormats(session_, 1, &formatCount, &format);
+    int64_t formats[2] = {0, 0};
+    result = KinectXRRuntime::getInstance().enumerateSwapchainFormats(session_, 2, &formatCount, formats);
     EXPECT_EQ(result, XR_SUCCESS);
-    EXPECT_EQ(formatCount, 1u);
-    EXPECT_EQ(format, 80);  // MTLPixelFormatBGRA8Unorm
+    EXPECT_EQ(formatCount, 2u);
+    EXPECT_EQ(formats[0], 80);  // MTLPixelFormatBGRA8Unorm
+    EXPECT_EQ(formats[1], 13);  // MTLPixelFormatR16Uint
 }
 
 TEST_F(SwapchainTest, EnumerateFormats_InvalidSession) {
@@ -101,9 +102,11 @@ TEST_F(SwapchainTest, EnumerateFormats_NullOutput) {
 
 TEST_F(SwapchainTest, EnumerateFormats_NullFormatsWithCapacity) {
     uint32_t formatCount = 0;
-    // Providing capacity > 0 but formats=nullptr should fail
+    // Providing capacity > 0 but less than formatCount with formats=nullptr
+    // returns SIZE_INSUFFICIENT (two-call idiom behavior)
     XrResult result = KinectXRRuntime::getInstance().enumerateSwapchainFormats(session_, 1, &formatCount, nullptr);
-    EXPECT_EQ(result, XR_ERROR_VALIDATION_FAILURE);
+    EXPECT_EQ(result, XR_ERROR_SIZE_INSUFFICIENT);
+    EXPECT_EQ(formatCount, 2u);
 }
 
 // M3 Tests: Swapchain Lifecycle (mock, no real Metal)
@@ -212,6 +215,73 @@ TEST_F(SwapchainTest, DestroySwapchain_InvalidHandle) {
     XrSwapchain fakeHandle = reinterpret_cast<XrSwapchain>(0x99999);
     XrResult result = KinectXRRuntime::getInstance().destroySwapchain(fakeHandle);
     EXPECT_EQ(result, XR_ERROR_HANDLE_INVALID);
+}
+
+// M1 Tests: Depth Swapchain Format
+
+TEST_F(SwapchainTest, CreateDepthSwapchain_Success) {
+    XrSwapchainCreateInfo createInfo{XR_TYPE_SWAPCHAIN_CREATE_INFO};
+    createInfo.format = 13;  // R16Uint
+    createInfo.width = 640;
+    createInfo.height = 480;
+    createInfo.sampleCount = 1;
+    createInfo.arraySize = 1;
+    createInfo.usageFlags = XR_SWAPCHAIN_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+
+    XrSwapchain swapchain = XR_NULL_HANDLE;
+    XrResult result = KinectXRRuntime::getInstance().createSwapchain(session_, &createInfo, &swapchain);
+    EXPECT_EQ(result, XR_SUCCESS);
+    EXPECT_NE(swapchain, XR_NULL_HANDLE);
+
+    // Verify swapchain is valid
+    EXPECT_TRUE(KinectXRRuntime::getInstance().isValidSwapchain(swapchain));
+
+    // Cleanup
+    KinectXRRuntime::getInstance().destroySwapchain(swapchain);
+}
+
+TEST_F(SwapchainTest, CreateDepthSwapchain_WrongUsageFlags) {
+    // Depth format with color usage should fail
+    XrSwapchainCreateInfo createInfo{XR_TYPE_SWAPCHAIN_CREATE_INFO};
+    createInfo.format = 13;  // R16Uint (depth format)
+    createInfo.width = 640;
+    createInfo.height = 480;
+    createInfo.sampleCount = 1;
+    createInfo.arraySize = 1;
+    createInfo.usageFlags = XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT;  // Wrong!
+
+    XrSwapchain swapchain = XR_NULL_HANDLE;
+    XrResult result = KinectXRRuntime::getInstance().createSwapchain(session_, &createInfo, &swapchain);
+    EXPECT_EQ(result, XR_ERROR_SWAPCHAIN_FORMAT_UNSUPPORTED);
+}
+
+TEST_F(SwapchainTest, CreateColorSwapchain_WrongUsageFlags) {
+    // Color format with depth usage should fail
+    XrSwapchainCreateInfo createInfo{XR_TYPE_SWAPCHAIN_CREATE_INFO};
+    createInfo.format = 80;  // BGRA8Unorm (color format)
+    createInfo.width = 640;
+    createInfo.height = 480;
+    createInfo.sampleCount = 1;
+    createInfo.arraySize = 1;
+    createInfo.usageFlags = XR_SWAPCHAIN_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;  // Wrong!
+
+    XrSwapchain swapchain = XR_NULL_HANDLE;
+    XrResult result = KinectXRRuntime::getInstance().createSwapchain(session_, &createInfo, &swapchain);
+    EXPECT_EQ(result, XR_ERROR_SWAPCHAIN_FORMAT_UNSUPPORTED);
+}
+
+TEST_F(SwapchainTest, CreateSwapchain_NoUsageFlags) {
+    XrSwapchainCreateInfo createInfo{XR_TYPE_SWAPCHAIN_CREATE_INFO};
+    createInfo.format = 80;
+    createInfo.width = 640;
+    createInfo.height = 480;
+    createInfo.sampleCount = 1;
+    createInfo.arraySize = 1;
+    createInfo.usageFlags = 0;  // No usage flags
+
+    XrSwapchain swapchain = XR_NULL_HANDLE;
+    XrResult result = KinectXRRuntime::getInstance().createSwapchain(session_, &createInfo, &swapchain);
+    EXPECT_EQ(result, XR_ERROR_FEATURE_UNSUPPORTED);
 }
 
 TEST_F(SwapchainTest, EnumerateSwapchainImages_CountQuery) {

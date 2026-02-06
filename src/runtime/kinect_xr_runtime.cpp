@@ -550,10 +550,14 @@ XrResult KinectXRRuntime::enumerateSwapchainFormats(XrSession session, uint32_t 
         return XR_ERROR_HANDLE_INVALID;
     }
 
-    // We only support BGRA8Unorm (Metal's native format on macOS)
-    // MTLPixelFormatBGRA8Unorm = 80
-    static const int64_t supportedFormats[] = {80};  // MTLPixelFormatBGRA8Unorm
-    static const uint32_t formatCount = 1;
+    // We support two formats:
+    // - BGRA8Unorm (80) for RGB color swapchains
+    // - R16Uint (13) for depth swapchains (Kinect 11-bit depth)
+    static const int64_t supportedFormats[] = {
+        80,  // MTLPixelFormatBGRA8Unorm (color)
+        13   // MTLPixelFormatR16Uint (depth)
+    };
+    static const uint32_t formatCount = 2;
 
     // Two-call idiom
     if (formatCapacityInput == 0) {
@@ -570,7 +574,10 @@ XrResult KinectXRRuntime::enumerateSwapchainFormats(XrSession session, uint32_t 
         return XR_ERROR_VALIDATION_FAILURE;
     }
 
-    formats[0] = supportedFormats[0];
+    // Copy all formats
+    for (uint32_t i = 0; i < formatCount; ++i) {
+        formats[i] = supportedFormats[i];
+    }
     *formatCountOutput = formatCount;
 
     return XR_SUCCESS;
@@ -590,8 +597,9 @@ XrResult KinectXRRuntime::createSwapchain(XrSession session, const XrSwapchainCr
         return XR_ERROR_HANDLE_INVALID;
     }
 
-    // Validate format (must be BGRA8Unorm = 80)
-    if (createInfo->format != 80) {
+    // Validate format (must be BGRA8Unorm or R16Uint)
+    // BGRA8Unorm = 80 (color), R16Uint = 13 (depth)
+    if (createInfo->format != 80 && createInfo->format != 13) {
         return XR_ERROR_SWAPCHAIN_FORMAT_UNSUPPORTED;
     }
 
@@ -610,9 +618,21 @@ XrResult KinectXRRuntime::createSwapchain(XrSession session, const XrSwapchainCr
         return XR_ERROR_FEATURE_UNSUPPORTED;
     }
 
-    // Validate usage flags (must be COLOR_ATTACHMENT)
-    if (!(createInfo->usageFlags & XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT)) {
+    // Validate usage flags (must have COLOR or DEPTH attachment)
+    bool hasColorUsage = (createInfo->usageFlags & XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT);
+    bool hasDepthUsage = (createInfo->usageFlags & XR_SWAPCHAIN_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
+
+    if (!hasColorUsage && !hasDepthUsage) {
         return XR_ERROR_FEATURE_UNSUPPORTED;
+    }
+
+    // Depth format must have depth usage, color format must have color usage
+    bool isDepthFormat = (createInfo->format == 13);  // R16Uint
+    if (isDepthFormat && !hasDepthUsage) {
+        return XR_ERROR_SWAPCHAIN_FORMAT_UNSUPPORTED;
+    }
+    if (!isDepthFormat && !hasColorUsage) {
+        return XR_ERROR_SWAPCHAIN_FORMAT_UNSUPPORTED;
     }
 
     // Create swapchain handle

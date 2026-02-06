@@ -98,7 +98,7 @@ Implement XR_KHR_composition_layer_depth extension and integrate live Kinect RGB
 
 ## Milestones
 
-- [ ] **M1: Depth Swapchain Format** (unit tests)
+- [x] **M1: Depth Swapchain Format** (unit tests)
   - Add R16Uint to xrEnumerateSwapchainFormats
   - Update createSwapchain to accept R16Uint
   - Create R16Uint Metal textures
@@ -176,7 +176,11 @@ Implement XR_KHR_composition_layer_depth extension and integrate live Kinect RGB
 ## Implementation Log
 
 ### Milestone 1
-- (To be filled during implementation)
+- Added R16Uint (13) format to enumerateSwapchainFormats alongside BGRA8Unorm (80)
+- Updated createSwapchain to validate depth vs color usage flags
+- Modified metal_helper.mm to support MTLPixelFormatR16Uint texture creation
+- Added 4 new unit tests (depth swapchain creation, usage flag validation)
+- All 29 swapchain tests passing
 
 ### Milestone 2
 - (To be filled during implementation)

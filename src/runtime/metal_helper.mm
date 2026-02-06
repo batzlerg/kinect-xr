@@ -9,8 +9,13 @@ void* createTexture(void* metalDevicePtr, uint32_t width, uint32_t height, int64
         return nullptr;
     }
 
-    // Only support BGRA8Unorm for now (format = 80)
-    if (format != 80) {
+    // Support BGRA8Unorm (80) and R16Uint (13)
+    MTLPixelFormat pixelFormat;
+    if (format == 80) {
+        pixelFormat = MTLPixelFormatBGRA8Unorm;
+    } else if (format == 13) {
+        pixelFormat = MTLPixelFormatR16Uint;
+    } else {
         return nullptr;
     }
 
@@ -27,7 +32,7 @@ void* createTexture(void* metalDevicePtr, uint32_t width, uint32_t height, int64
         id<MTLDevice> device = (__bridge id<MTLDevice>)metalDevicePtr;
 
         MTLTextureDescriptor* descriptor = [MTLTextureDescriptor
-            texture2DDescriptorWithPixelFormat:MTLPixelFormatBGRA8Unorm
+            texture2DDescriptorWithPixelFormat:pixelFormat
             width:width
             height:height
             mipmapped:NO];
