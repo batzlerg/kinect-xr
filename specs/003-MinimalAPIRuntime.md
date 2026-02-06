@@ -414,9 +414,9 @@ Update Phase 2 success criteria:
 
 ## Archive Criteria
 
-- [ ] All milestones complete
-- [ ] All acceptance criteria met
-- [ ] Tests passing
-- [ ] Runtime discoverable by external tool
-- [ ] Documentation updated
+- [x] All milestones complete
+- [x] All acceptance criteria met
+- [x] Tests passing
+- [x] Runtime discoverable by external tool
+- [x] Documentation updated
 - [ ] Spec moved to specs/archive/003-MinimalAPIRuntime.md
