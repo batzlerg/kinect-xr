@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kinect + P5.js - Depth Mask</title>
+  <script src="https://cdn.jsdelivr.net/npm/p5@1.9.0/lib/p5.min.js"></script>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: #000;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    #controls {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      color: white;
+      font-family: sans-serif;
+      font-size: 14px;
+      background: rgba(0,0,0,0.7);
+      padding: 15px;
+      border-radius: 8px;
+      z-index: 100;
+    }
+    #controls label {
+      display: block;
+      margin: 10px 0 5px;
+    }
+    #controls input[type="range"] {
+      width: 200px;
+    }
+    #status {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      color: white;
+      font-family: monospace;
+      padding: 10px;
+      background: rgba(0,0,0,0.7);
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div id="controls">
+    <strong>Depth Mask Effect</strong>
+    <label>Near Threshold: <span id="nearVal">1000</span>mm</label>
+    <input type="range" id="nearSlider" min="800" max="2000" value="1000">
+    <label>Far Threshold: <span id="farVal">2500</span>mm</label>
+    <input type="range" id="farSlider" min="1500" max="4000" value="2500">
+    <label>Effect:</label>
+    <select id="effectSelect">
+      <option value="mask">Depth Mask</option>
+      <option value="silhouette">Silhouette</option>
+      <option value="heatmap">Heatmap</option>
+      <option value="edges">Edge Detection</option>
+    </select>
+  </div>
+  <div id="status">Connecting...</div>
+
+  <script type="module">
+    import { KinectClient, KINECT } from '../../lib/kinect-client.js';
+
+    const sketch = (p) => {
+      let kinect;
+      let rgbImage;
+      let depthData = null;
+      let outputImage;
+      let nearThreshold = 1000;
+      let farThreshold = 2500;
+      let effect = 'mask';
+
+      p.setup = () => {
+        p.createCanvas(KINECT.WIDTH, KINECT.HEIGHT);
+        p.pixelDensity(1);
+
+        // Create images
+        rgbImage = p.createImage(KINECT.WIDTH, KINECT.HEIGHT);
+        outputImage = p.createImage(KINECT.WIDTH, KINECT.HEIGHT);
+
+        // Initialize Kinect
+        kinect = new KinectClient();
+
+        kinect.onRgbFrame = (imageData, frameId) => {
+          rgbImage.loadPixels();
+          for (let i = 0; i < imageData.data.length; i++) {
+            rgbImage.pixels[i] = imageData.data[i];
+          }
+          rgbImage.updatePixels();
+        };
+
+        kinect.onDepthFrame = (depth, frameId) => {
+          depthData = depth;
+        };
+
+        kinect.onConnect = () => {
+          document.getElementById('status').textContent = 'Connected';
+          document.getElementById('status').style.color = '#4ade80';
+        };
+
+        kinect.onDisconnect = () => {
+          document.getElementById('status').textContent = 'Disconnected';
+          document.getElementById('status').style.color = '#f87171';
+        };
+
+        kinect.connect().catch(() => {
+          document.getElementById('status').textContent = 'Connection failed';
+        });
+
+        // UI controls
+        document.getElementById('nearSlider').oninput = (e) => {
+          nearThreshold = parseInt(e.target.value);
+          document.getElementById('nearVal').textContent = nearThreshold;
+        };
+        document.getElementById('farSlider').oninput = (e) => {
+          farThreshold = parseInt(e.target.value);
+          document.getElementById('farVal').textContent = farThreshold;
+        };
+        document.getElementById('effectSelect').onchange = (e) => {
+          effect = e.target.value;
+        };
+      };
+
+      p.draw = () => {
+        p.background(0);
+
+        if (!depthData) {
+          p.fill(255);
+          p.textAlign(p.CENTER, p.CENTER);
+          p.text('Waiting for Kinect...', p.width/2, p.height/2);
+          return;
+        }
+
+        outputImage.loadPixels();
+        rgbImage.loadPixels();
+
+        for (let i = 0; i < KINECT.WIDTH * KINECT.HEIGHT; i++) {
+          const depth = depthData[i];
+          const px = i * 4;
+
+          // Mirror horizontally
+          const x = i % KINECT.WIDTH;
+          const y = Math.floor(i / KINECT.WIDTH);
+          const mirrorIdx = (y * KINECT.WIDTH + (KINECT.WIDTH - 1 - x)) * 4;
+
+          const inRange = depth >= nearThreshold && depth <= farThreshold;
+
+          switch (effect) {
+            case 'mask':
+              // Show RGB only where depth is in range
+              if (inRange) {
+                outputImage.pixels[px] = rgbImage.pixels[mirrorIdx];
+                outputImage.pixels[px + 1] = rgbImage.pixels[mirrorIdx + 1];
+                outputImage.pixels[px + 2] = rgbImage.pixels[mirrorIdx + 2];
+              } else {
+                outputImage.pixels[px] = 0;
+                outputImage.pixels[px + 1] = 0;
+                outputImage.pixels[px + 2] = 0;
+              }
+              break;
+
+            case 'silhouette':
+              // White silhouette on black
+              if (inRange) {
+                outputImage.pixels[px] = 255;
+                outputImage.pixels[px + 1] = 255;
+                outputImage.pixels[px + 2] = 255;
+              } else {
+                outputImage.pixels[px] = 0;
+                outputImage.pixels[px + 1] = 0;
+                outputImage.pixels[px + 2] = 0;
+              }
+              break;
+
+            case 'heatmap':
+              // Depth as heatmap (close=red, far=blue)
+              if (depth >= KINECT.MIN_DEPTH_MM && depth <= KINECT.MAX_DEPTH_MM) {
+                const t = (depth - KINECT.MIN_DEPTH_MM) / (KINECT.MAX_DEPTH_MM - KINECT.MIN_DEPTH_MM);
+                outputImage.pixels[px] = Math.floor((1 - t) * 255);     // R
+                outputImage.pixels[px + 1] = Math.floor(Math.sin(t * Math.PI) * 128); // G
+                outputImage.pixels[px + 2] = Math.floor(t * 255);       // B
+              } else {
+                outputImage.pixels[px] = 0;
+                outputImage.pixels[px + 1] = 0;
+                outputImage.pixels[px + 2] = 0;
+              }
+              break;
+
+            case 'edges':
+              // Simple edge detection on depth
+              if (i > KINECT.WIDTH && i < (KINECT.WIDTH * KINECT.HEIGHT - KINECT.WIDTH)) {
+                const left = depthData[i - 1] || 0;
+                const right = depthData[i + 1] || 0;
+                const up = depthData[i - KINECT.WIDTH] || 0;
+                const down = depthData[i + KINECT.WIDTH] || 0;
+                const edge = Math.abs(left - right) + Math.abs(up - down);
+                const val = Math.min(255, edge / 10);
+                outputImage.pixels[px] = val;
+                outputImage.pixels[px + 1] = val;
+                outputImage.pixels[px + 2] = val;
+              }
+              break;
+          }
+          outputImage.pixels[px + 3] = 255; // Alpha
+        }
+
+        outputImage.updatePixels();
+        p.image(outputImage, 0, 0);
+
+        // Show FPS
+        p.fill(255);
+        p.textAlign(p.RIGHT, p.TOP);
+        p.text(`FPS: ${p.frameRate().toFixed(1)}`, p.width - 10, 10);
+      };
+
+      window.addEventListener('beforeunload', () => {
+        if (kinect) kinect.disconnect();
+      });
+    };
+
+    new p5(sketch);
+  </script>
+</body>
+</html>

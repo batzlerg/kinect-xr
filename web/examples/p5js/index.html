@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kinect + P5.js - Depth Particles</title>
+  <script src="https://cdn.jsdelivr.net/npm/p5@1.9.0/lib/p5.min.js"></script>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: #000;
+    }
+    #info {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      color: white;
+      font-family: monospace;
+      font-size: 12px;
+      background: rgba(0,0,0,0.7);
+      padding: 10px;
+      border-radius: 4px;
+      z-index: 100;
+    }
+    #status {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      color: white;
+      font-family: monospace;
+      font-size: 14px;
+      background: rgba(0,0,0,0.7);
+      padding: 10px;
+      border-radius: 4px;
+      z-index: 100;
+    }
+    .connected { color: #4ade80; }
+    .disconnected { color: #f87171; }
+  </style>
+</head>
+<body>
+  <div id="info">
+    <strong>Kinect XR + P5.js</strong><br>
+    Depth-driven particle system<br><br>
+    <span id="fps">FPS: --</span><br>
+    <span id="particles">Particles: --</span>
+  </div>
+  <div id="status" class="disconnected">Connecting...</div>
+
+  <script type="module">
+    import { KinectClient, KINECT } from '../../lib/kinect-client.js';
+
+    // P5.js sketch
+    const sketch = (p) => {
+      let kinect;
+      let depthData = null;
+      let particles = [];
+      let connected = false;
+
+      // Particle system settings
+      const SAMPLE_STEP = 8;  // Sample every Nth pixel
+      const MAX_PARTICLES = 5000;
+      const DEPTH_SCALE = 0.3;
+
+      p.setup = () => {
+        p.createCanvas(p.windowWidth, p.windowHeight, p.WEBGL);
+        p.colorMode(p.HSB, 360, 100, 100, 100);
+
+        // Initialize Kinect client
+        kinect = new KinectClient();
+
+        // Only subscribe to depth (RGB not needed for this effect)
+        kinect.setStreams(['depth']);
+
+        kinect.onDepthFrame = (depth, frameId) => {
+          depthData = depth;
+        };
+
+        kinect.onConnect = (caps) => {
+          connected = true;
+          document.getElementById('status').textContent = 'Connected';
+          document.getElementById('status').className = 'connected';
+        };
+
+        kinect.onDisconnect = () => {
+          connected = false;
+          document.getElementById('status').textContent = 'Disconnected';
+          document.getElementById('status').className = 'disconnected';
+        };
+
+        kinect.onError = (err) => {
+          document.getElementById('status').textContent = `Error: ${err.message || err.code}`;
+        };
+
+        // Connect
+        kinect.connect().catch(err => {
+          document.getElementById('status').textContent = 'Connection failed - is bridge running?';
+        });
+      };
+
+      p.draw = () => {
+        p.background(0);
+
+        // Update info
+        document.getElementById('fps').textContent = `FPS: ${p.frameRate().toFixed(1)}`;
+        document.getElementById('particles').textContent = `Particles: ${particles.length}`;
+
+        if (!depthData) {
+          // Show waiting message
+          p.push();
+          p.fill(255);
+          p.textAlign(p.CENTER, p.CENTER);
+          p.textSize(20);
+          p.text('Waiting for Kinect data...', 0, 0);
+          p.pop();
+          return;
+        }
+
+        // Generate particles from depth data
+        particles = [];
+        for (let y = 0; y < KINECT.HEIGHT; y += SAMPLE_STEP) {
+          for (let x = 0; x < KINECT.WIDTH; x += SAMPLE_STEP) {
+            const idx = y * KINECT.WIDTH + x;
+            const depth = depthData[idx];
+
+            // Only use valid depth values
+            if (depth >= KINECT.MIN_DEPTH_MM && depth <= KINECT.MAX_DEPTH_MM) {
+              // Map coordinates to screen space (centered, mirrored horizontally)
+              const px = p.map(KINECT.WIDTH - x, 0, KINECT.WIDTH, -p.width/2, p.width/2);
+              const py = p.map(y, 0, KINECT.HEIGHT, -p.height/2, p.height/2);
+              const pz = p.map(depth, KINECT.MIN_DEPTH_MM, KINECT.MAX_DEPTH_MM, 200, -200);
+
+              // Color based on depth (closer = warmer)
+              const hue = p.map(depth, KINECT.MIN_DEPTH_MM, KINECT.MAX_DEPTH_MM, 0, 240);
+              const size = p.map(depth, KINECT.MIN_DEPTH_MM, KINECT.MAX_DEPTH_MM, 8, 2);
+
+              particles.push({ x: px, y: py, z: pz, hue, size });
+
+              if (particles.length >= MAX_PARTICLES) break;
+            }
+          }
+          if (particles.length >= MAX_PARTICLES) break;
+        }
+
+        // Camera rotation based on mouse
+        const rotY = p.map(p.mouseX, 0, p.width, -p.PI/4, p.PI/4);
+        const rotX = p.map(p.mouseY, 0, p.height, -p.PI/6, p.PI/6);
+
+        p.rotateY(rotY);
+        p.rotateX(rotX);
+
+        // Draw particles
+        p.noStroke();
+        for (const particle of particles) {
+          p.push();
+          p.translate(particle.x, particle.y, particle.z);
+          p.fill(particle.hue, 80, 100, 80);
+          p.sphere(particle.size);
+          p.pop();
+        }
+
+        // Draw bounding box
+        p.push();
+        p.noFill();
+        p.stroke(255, 0, 100, 30);
+        p.box(p.width, p.height, 400);
+        p.pop();
+      };
+
+      p.windowResized = () => {
+        p.resizeCanvas(p.windowWidth, p.windowHeight);
+      };
+
+      // Cleanup on page unload
+      window.addEventListener('beforeunload', () => {
+        if (kinect) kinect.disconnect();
+      });
+    };
+
+    // Start P5.js
+    new p5(sketch);
+  </script>
+</body>
+</html>
