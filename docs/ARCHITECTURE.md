@@ -34,9 +34,9 @@ C++ OpenXR runtime layered on libfreenect for Kinect 1 hardware access. The arch
 │  └────────────────────────────────────────────────────────────┘ │
 │                            │                                    │
 │  ┌────────────────────────────────────────────────────────────┐ │
-│  │  Device Abstraction Layer (Phase 1) ◄── CURRENT            │ │
-│  │  - KinectDevice class                                      │ │
-│  │  - Stream management                                       │ │
+│  │  Device Abstraction Layer (Phase 1 COMPLETE)               │ │
+│  │  - KinectDevice class (initialization, cleanup)            │ │
+│  │  - Stream management (start/stop, callbacks)               │ │
 │  │  - Configuration handling                                  │ │
 │  └────────────────────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────────────┘
@@ -95,10 +95,10 @@ public:
   bool isInitialized() const;
   static int getDeviceCount();
 
-  // Stream management (to be implemented)
-  DeviceError startStreams();
-  DeviceError stopStreams();
-  bool isStreaming() const;
+  // Stream management
+  DeviceError startStreams();  // Start depth and RGB streaming
+  DeviceError stopStreams();   // Stop streaming and clean up
+  bool isStreaming() const;    // Query streaming state
 
 private:
   freenect_context* ctx_;
@@ -115,6 +115,9 @@ private:
 - RAII for resource management
 - Error codes over exceptions (hardware-oriented code)
 - Delete copy operations (device identity)
+- Callback-based streaming using libfreenect C API patterns
+- Static C callbacks bridge to KinectDevice instance methods
+- Thread safety deferred to Phase 4 (single-threaded usage for Phase 1)
 
 ### Data Transformation Pipeline (Phase 4)
 
@@ -169,14 +172,22 @@ private:
 
 ## Data Flow
 
-### Current (Phase 1)
+### Current (Phase 1 - Complete)
 
 ```
-Kinect USB ─► libfreenect ─► KinectDevice ─► Test Application
-                 │               │
-                 │               └── Callback: void*(depth/rgb, timestamp)
+Kinect USB ─► libfreenect ─► C callbacks ─► KinectDevice ─► Test Application
+                 │                              │
+                 │                              └── Streaming state: start/stop/isStreaming
                  │
                  └── Isochronous USB (30fps depth, 30fps RGB)
+                      ├── freenect_start_depth() / freenect_stop_depth()
+                      └── freenect_start_video() / freenect_stop_video()
+
+Notes:
+- Callbacks registered via freenect_set_depth_callback() / freenect_set_video_callback()
+- Static C callbacks use freenect_get_user() to retrieve KinectDevice* instance
+- Frame data flows through callbacks (raw void* buffers + timestamps)
+- Streaming state explicitly tracked to prevent start/stop errors
 ```
 
 ### Target (Phase 5)
@@ -248,9 +259,15 @@ Kinect USB ─► libfreenect ─► KinectDevice ─► DepthTransformer ─►
 
 | Category | Location | Hardware | Purpose |
 |----------|----------|----------|---------|
-| Unit | `tests/unit/` | No | Logic validation, error handling |
-| Integration | `tests/integration/` | Yes | Hardware interaction, streams |
-| E2E | Future | Yes | Full OpenXR workflow |
+| Unit | `tests/unit/` | Conditional | Logic validation, error handling, stream state |
+| Integration | `tests/integration/` | Conditional | Hardware interaction, OpenXR runtime discovery |
+| Runtime | `tests/runtime/` | No | OpenXR API compliance (no device required) |
+
+**Hardware-Optional Testing:**
+- Tests use `GTEST_SKIP()` when Kinect not detected
+- Unit tests validate stream lifecycle without actual frame capture
+- Hardware-dependent tests run only when device connected
+- Script `scripts/run-hardware-tests.sh` handles sudo elevation
 
 ### Mocking Strategy
 
