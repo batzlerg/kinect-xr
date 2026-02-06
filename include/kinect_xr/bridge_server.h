@@ -175,6 +175,12 @@ private:
     // Statistics
     std::atomic<uint32_t> framesSent_{0};
     std::atomic<uint32_t> droppedFrames_{0};
+
+    // FPS tracking
+    std::atomic<uint32_t> rgbFrameCount_{0};
+    std::atomic<uint32_t> depthFrameCount_{0};
+    std::chrono::steady_clock::time_point lastStatsTime_;
+    std::mutex statsMutex_;
 };
 
 }  // namespace kinect_xr

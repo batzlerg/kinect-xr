@@ -110,17 +110,10 @@ int main(int argc, char* argv[]) {
 
         std::cout << "Kinect initialized successfully" << std::endl;
 
-        // Connect to bridge server
+        // Connect to bridge server (streams will start on-demand when clients connect)
         server.setKinectDevice(kinect.get());
 
-        // Start streaming
-        error = kinect->startStreams();
-        if (error != kinect_xr::DeviceError::None) {
-            std::cerr << "Error starting streams: " << kinect_xr::errorToString(error) << std::endl;
-            return 1;
-        }
-
-        std::cout << "Kinect streaming started" << std::endl;
+        std::cout << "Kinect ready (streams will start when clients connect)" << std::endl;
     }
 
     // Start server
@@ -135,23 +128,13 @@ int main(int argc, char* argv[]) {
     std::cout << "Press Ctrl+C to stop.\n" << std::endl;
 
     // Main loop - just wait for signal
+    // (Stats are now printed automatically by broadcast loop every 10s)
     while (server.isRunning()) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
-
-        // Print stats periodically
-        static int counter = 0;
-        if (++counter % 10 == 0) {
-            std::cout << "Clients: " << server.getClientCount()
-                      << ", Frames sent: " << server.getFramesSent()
-                      << ", Dropped: " << server.getDroppedFrames()
-                      << std::endl;
-        }
     }
 
-    // Cleanup
-    if (kinect && kinect->isStreaming()) {
-        kinect->stopStreams();
-    }
+    // Cleanup (streams are stopped automatically when server stops)
+    std::cout << "Stopping server..." << std::endl;
 
     std::cout << "Goodbye!" << std::endl;
     return 0;

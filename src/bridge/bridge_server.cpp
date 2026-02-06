@@ -11,6 +11,7 @@
 
 #include <chrono>
 #include <cstring>
+#include <iomanip>
 #include <iostream>
 
 using json = nlohmann::json;
@@ -23,7 +24,8 @@ constexpr const char* PROTOCOL_VERSION = "1.0";
 constexpr const char* SERVER_NAME = "kinect-xr-bridge";
 }  // namespace
 
-BridgeServer::BridgeServer() = default;
+BridgeServer::BridgeServer()
+    : lastStatsTime_(std::chrono::steady_clock::now()) {}
 
 BridgeServer::~BridgeServer() {
     stop();
@@ -134,9 +136,20 @@ void BridgeServer::onConnection(ix::WebSocket* ws) {
     std::cout << "Client connected" << std::endl;
 
     // Add to clients map
+    size_t clientCount;
     {
         std::lock_guard<std::mutex> lock(clientsMutex_);
         clients_[ws] = ClientState{};
+        clientCount = clients_.size();
+    }
+
+    // Start Kinect streams when first client connects
+    if (clientCount == 1 && kinectDevice_ && !mockMode_) {
+        std::cout << "Starting Kinect streams (first client connected)" << std::endl;
+        auto error = kinectDevice_->startStreams();
+        if (error != DeviceError::None) {
+            std::cerr << "Failed to start Kinect streams: " << errorToString(error) << std::endl;
+        }
     }
 
     // Send hello
@@ -167,8 +180,21 @@ void BridgeServer::onClose(ix::WebSocket* ws) {
 
     std::cout << "Client disconnected" << std::endl;
 
-    std::lock_guard<std::mutex> lock(clientsMutex_);
-    clients_.erase(ws);
+    size_t clientCount;
+    {
+        std::lock_guard<std::mutex> lock(clientsMutex_);
+        clients_.erase(ws);
+        clientCount = clients_.size();
+    }
+
+    // Stop Kinect streams when last client disconnects
+    if (clientCount == 0 && kinectDevice_ && !mockMode_) {
+        std::cout << "Stopping Kinect streams (no clients connected)" << std::endl;
+        auto error = kinectDevice_->stopStreams();
+        if (error != DeviceError::None) {
+            std::cerr << "Failed to stop Kinect streams: " << errorToString(error) << std::endl;
+        }
+    }
 }
 
 void BridgeServer::handleSubscribe(ix::WebSocket* ws, const std::string& message) {
@@ -272,9 +298,36 @@ void BridgeServer::broadcastLoop() {
     using namespace std::chrono;
 
     auto nextFrameTime = steady_clock::now();
+    auto nextStatsTime = steady_clock::now() + seconds(10);
 
     while (broadcastRunning_) {
         auto now = steady_clock::now();
+
+        // Print stats every 10 seconds
+        if (now >= nextStatsTime) {
+            std::lock_guard<std::mutex> lock(statsMutex_);
+            auto elapsed = duration_cast<milliseconds>(now - lastStatsTime_).count() / 1000.0;
+
+            if (elapsed > 0) {
+                double rgbFps = rgbFrameCount_.load() / elapsed;
+                double depthFps = depthFrameCount_.load() / elapsed;
+
+                std::cout << "Stats: "
+                          << "Clients=" << getClientCount() << " "
+                          << "RGB=" << std::fixed << std::setprecision(1) << rgbFps << "fps "
+                          << "Depth=" << depthFps << "fps "
+                          << "Sent=" << framesSent_.load() << " "
+                          << "Dropped=" << droppedFrames_.load()
+                          << std::endl;
+
+                // Reset counters
+                rgbFrameCount_ = 0;
+                depthFrameCount_ = 0;
+                lastStatsTime_ = now;
+            }
+
+            nextStatsTime = now + seconds(10);
+        }
 
         if (now >= nextFrameTime) {
             // Time to send a frame
@@ -375,11 +428,8 @@ void BridgeServer::onDepthFrame(const void* data, uint32_t timestamp) {
     frameCache_.depthValid = true;
     frameCache_.frameId++;
 
-    // Debug: Log occasionally
-    static int depthCount = 0;
-    if (++depthCount % 100 == 0) {
-        std::cout << "[DEBUG] Depth callback fired " << depthCount << " times" << std::endl;
-    }
+    // Track FPS
+    depthFrameCount_++;
 }
 
 void BridgeServer::onVideoFrame(const void* data, uint32_t timestamp) {
@@ -390,11 +440,8 @@ void BridgeServer::onVideoFrame(const void* data, uint32_t timestamp) {
     frameCache_.rgbTimestamp = timestamp;
     frameCache_.rgbValid = true;
 
-    // Debug: Log occasionally
-    static int rgbCount = 0;
-    if (++rgbCount % 100 == 0) {
-        std::cout << "[DEBUG] RGB callback fired " << rgbCount << " times" << std::endl;
-    }
+    // Track FPS
+    rgbFrameCount_++;
 }
 
 void BridgeServer::generateMockRgbFrame(std::vector<uint8_t>& data, uint32_t frameId) {

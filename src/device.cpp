@@ -8,6 +8,9 @@
 #include <libfreenect/libfreenect.h>
 
 #include <iostream>
+#include <chrono>
+#include <unistd.h>
+#include <fcntl.h>
 
 namespace kinect_xr {
 
@@ -188,12 +191,47 @@ DeviceError KinectDevice::startStreams() {
 
 void KinectDevice::eventLoop() {
   std::cout << "USB event loop started" << std::endl;
+
+  // Suppress libfreenect USB error spam by redirecting stderr
+  // (libfreenect logs "Invalid magic" errors that are non-fatal)
+  int stderr_save = dup(STDERR_FILENO);
+  int devnull = open("/dev/null", O_WRONLY);
+  dup2(devnull, STDERR_FILENO);
+  close(devnull);
+
+  // Rate-limited error logging
+  auto lastErrorLog = std::chrono::steady_clock::now();
+  int errorsSinceLastLog = 0;
+
   while (eventThreadRunning_) {
     if (freenect_process_events(ctx_) < 0) {
-      std::cerr << "Error processing freenect events" << std::endl;
-      break;
+      errorsSinceLastLog++;
+
+      // Restore stderr temporarily for rate-limited logging
+      auto now = std::chrono::steady_clock::now();
+      auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - lastErrorLog).count();
+
+      if (elapsed >= 10) {
+        dup2(stderr_save, STDERR_FILENO);
+        if (errorsSinceLastLog > 0) {
+          std::cerr << "Warning: " << errorsSinceLastLog
+                    << " USB errors in last " << elapsed << "s (non-fatal)" << std::endl;
+        }
+        errorsSinceLastLog = 0;
+        lastErrorLog = now;
+
+        // Suppress again
+        int dn = open("/dev/null", O_WRONLY);
+        dup2(dn, STDERR_FILENO);
+        close(dn);
+      }
     }
   }
+
+  // Restore stderr
+  dup2(stderr_save, STDERR_FILENO);
+  close(stderr_save);
+
   std::cout << "USB event loop stopped" << std::endl;
 }
 
