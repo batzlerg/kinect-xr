@@ -127,7 +127,7 @@ Runtime supports full session lifecycle. Applications can create sessions with M
   - Implement xrEndSession
   - Validation: State transitions correct
 
-- [ ] **M5: Reference space management**
+- [x] **M5: Reference space management**
   - Add SpaceData struct
   - Implement xrEnumerateReferenceSpaceTypes
   - Implement xrCreateReferenceSpace
@@ -234,3 +234,12 @@ Update Phase 2 success criteria checkboxes.
 - [ ] `hello_xr` validation documented
 - [ ] Documentation updated (CLAUDE.md, ARCHITECTURE.md, PRD.md)
 - [ ] Spec moved to specs/archive/005-SessionManagement.md
+
+### Milestone 5
+- Added SpaceData struct for space tracking (handle, session, referenceSpaceType)
+- Implemented xrEnumerateReferenceSpaces - returns VIEW, LOCAL, STAGE
+- Implemented xrCreateReferenceSpace - creates space with identity transforms
+- Implemented xrDestroySpace - validates handle and cleans up
+- Added space tracking with sequential handle generation
+- 7 unit tests for space enumeration, creation, and destruction
+- All tests passing - reference space management working correctly

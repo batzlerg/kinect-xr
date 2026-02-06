@@ -14,6 +14,18 @@ struct SystemData;
 struct SessionData;
 struct SpaceData;
 
+// Space data
+struct SpaceData {
+    XrSpace handle;
+    XrSession session;  // Parent session
+    XrReferenceSpaceType referenceSpaceType;
+
+    SpaceData(XrSpace h, XrSession sess, XrReferenceSpaceType type)
+        : handle(h)
+        , session(sess)
+        , referenceSpaceType(type) {}
+};
+
 // System data for Kinect XR
 struct SystemData {
     XrSystemId systemId;
@@ -112,6 +124,14 @@ public:
     // Event queue
     XrResult pollEvent(XrInstance instance, XrEventDataBuffer* eventData);
 
+    // Reference space management
+    XrResult enumerateReferenceSpaces(XrSession session, uint32_t spaceCapacityInput, uint32_t* spaceCountOutput, XrReferenceSpaceType* spaces);
+    XrResult createReferenceSpace(XrSession session, const XrReferenceSpaceCreateInfo* createInfo, XrSpace* space);
+    XrResult destroySpace(XrSpace space);
+
+    // Space validation
+    bool isValidSpace(XrSpace space) const;
+
     // Delete copy and move constructors/operators
     KinectXRRuntime(const KinectXRRuntime&) = delete;
     KinectXRRuntime& operator=(const KinectXRRuntime&) = delete;
@@ -130,6 +150,10 @@ private:
     mutable std::mutex sessionMutex_;
     std::unordered_map<XrSession, std::unique_ptr<SessionData>> sessions_;
     uint64_t nextSessionId_ = 1;
+
+    mutable std::mutex spaceMutex_;
+    std::unordered_map<XrSpace, std::unique_ptr<SpaceData>> spaces_;
+    uint64_t nextSpaceId_ = 1;
 };
 
 } // namespace kinect_xr

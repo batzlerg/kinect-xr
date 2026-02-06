@@ -2,6 +2,8 @@
 #include <openxr/openxr.h>
 #include <openxr/openxr_platform.h>
 #include <cstdlib>
+#include <vector>
+#include <algorithm>
 
 class SessionManagementTest : public ::testing::Test {
 protected:
@@ -332,4 +334,177 @@ TEST_F(SessionManagementTest, BeginSessionUnsupportedViewConfig) {
     EXPECT_EQ(result, XR_ERROR_VIEW_CONFIGURATION_TYPE_UNSUPPORTED);
 
     xrDestroySession(session);
+}
+
+// Reference Space Tests
+
+TEST_F(SessionManagementTest, EnumerateReferenceSpaces) {
+    void* dummyCommandQueue = reinterpret_cast<void*>(0x12345678);
+
+    XrGraphicsBindingMetalKHR metalBinding{XR_TYPE_GRAPHICS_BINDING_METAL_KHR};
+    metalBinding.commandQueue = dummyCommandQueue;
+
+    XrSessionCreateInfo sessionInfo{XR_TYPE_SESSION_CREATE_INFO};
+    sessionInfo.next = &metalBinding;
+    sessionInfo.systemId = systemId_;
+
+    XrSession session = XR_NULL_HANDLE;
+    xrCreateSession(instance_, &sessionInfo, &session);
+
+    // Get count
+    uint32_t spaceCount = 0;
+    XrResult result = xrEnumerateReferenceSpaces(session, 0, &spaceCount, nullptr);
+    ASSERT_EQ(result, XR_SUCCESS);
+    EXPECT_EQ(spaceCount, 3u);  // VIEW, LOCAL, STAGE
+
+    // Get types
+    std::vector<XrReferenceSpaceType> spaceTypes(spaceCount);
+    result = xrEnumerateReferenceSpaces(session, spaceCount, &spaceCount, spaceTypes.data());
+    ASSERT_EQ(result, XR_SUCCESS);
+
+    // Verify we have VIEW, LOCAL, and STAGE
+    EXPECT_TRUE(std::find(spaceTypes.begin(), spaceTypes.end(), XR_REFERENCE_SPACE_TYPE_VIEW) != spaceTypes.end());
+    EXPECT_TRUE(std::find(spaceTypes.begin(), spaceTypes.end(), XR_REFERENCE_SPACE_TYPE_LOCAL) != spaceTypes.end());
+    EXPECT_TRUE(std::find(spaceTypes.begin(), spaceTypes.end(), XR_REFERENCE_SPACE_TYPE_STAGE) != spaceTypes.end());
+
+    xrDestroySession(session);
+}
+
+TEST_F(SessionManagementTest, CreateReferenceSpaceView) {
+    void* dummyCommandQueue = reinterpret_cast<void*>(0x12345678);
+
+    XrGraphicsBindingMetalKHR metalBinding{XR_TYPE_GRAPHICS_BINDING_METAL_KHR};
+    metalBinding.commandQueue = dummyCommandQueue;
+
+    XrSessionCreateInfo sessionInfo{XR_TYPE_SESSION_CREATE_INFO};
+    sessionInfo.next = &metalBinding;
+    sessionInfo.systemId = systemId_;
+
+    XrSession session = XR_NULL_HANDLE;
+    xrCreateSession(instance_, &sessionInfo, &session);
+
+    XrReferenceSpaceCreateInfo spaceInfo{XR_TYPE_REFERENCE_SPACE_CREATE_INFO};
+    spaceInfo.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_VIEW;
+    spaceInfo.poseInReferenceSpace = {{0, 0, 0, 1}, {0, 0, 0}};  // Identity
+
+    XrSpace space = XR_NULL_HANDLE;
+    XrResult result = xrCreateReferenceSpace(session, &spaceInfo, &space);
+
+    ASSERT_EQ(result, XR_SUCCESS);
+    EXPECT_NE(space, XR_NULL_HANDLE);
+
+    xrDestroySpace(space);
+    xrDestroySession(session);
+}
+
+TEST_F(SessionManagementTest, CreateReferenceSpaceLocal) {
+    void* dummyCommandQueue = reinterpret_cast<void*>(0x12345678);
+
+    XrGraphicsBindingMetalKHR metalBinding{XR_TYPE_GRAPHICS_BINDING_METAL_KHR};
+    metalBinding.commandQueue = dummyCommandQueue;
+
+    XrSessionCreateInfo sessionInfo{XR_TYPE_SESSION_CREATE_INFO};
+    sessionInfo.next = &metalBinding;
+    sessionInfo.systemId = systemId_;
+
+    XrSession session = XR_NULL_HANDLE;
+    xrCreateSession(instance_, &sessionInfo, &session);
+
+    XrReferenceSpaceCreateInfo spaceInfo{XR_TYPE_REFERENCE_SPACE_CREATE_INFO};
+    spaceInfo.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_LOCAL;
+    spaceInfo.poseInReferenceSpace = {{0, 0, 0, 1}, {0, 0, 0}};
+
+    XrSpace space = XR_NULL_HANDLE;
+    XrResult result = xrCreateReferenceSpace(session, &spaceInfo, &space);
+
+    ASSERT_EQ(result, XR_SUCCESS);
+    EXPECT_NE(space, XR_NULL_HANDLE);
+
+    xrDestroySpace(space);
+    xrDestroySession(session);
+}
+
+TEST_F(SessionManagementTest, CreateReferenceSpaceStage) {
+    void* dummyCommandQueue = reinterpret_cast<void*>(0x12345678);
+
+    XrGraphicsBindingMetalKHR metalBinding{XR_TYPE_GRAPHICS_BINDING_METAL_KHR};
+    metalBinding.commandQueue = dummyCommandQueue;
+
+    XrSessionCreateInfo sessionInfo{XR_TYPE_SESSION_CREATE_INFO};
+    sessionInfo.next = &metalBinding;
+    sessionInfo.systemId = systemId_;
+
+    XrSession session = XR_NULL_HANDLE;
+    xrCreateSession(instance_, &sessionInfo, &session);
+
+    XrReferenceSpaceCreateInfo spaceInfo{XR_TYPE_REFERENCE_SPACE_CREATE_INFO};
+    spaceInfo.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_STAGE;
+    spaceInfo.poseInReferenceSpace = {{0, 0, 0, 1}, {0, 0, 0}};
+
+    XrSpace space = XR_NULL_HANDLE;
+    XrResult result = xrCreateReferenceSpace(session, &spaceInfo, &space);
+
+    ASSERT_EQ(result, XR_SUCCESS);
+    EXPECT_NE(space, XR_NULL_HANDLE);
+
+    xrDestroySpace(space);
+    xrDestroySession(session);
+}
+
+TEST_F(SessionManagementTest, CreateReferenceSpaceUnsupported) {
+    void* dummyCommandQueue = reinterpret_cast<void*>(0x12345678);
+
+    XrGraphicsBindingMetalKHR metalBinding{XR_TYPE_GRAPHICS_BINDING_METAL_KHR};
+    metalBinding.commandQueue = dummyCommandQueue;
+
+    XrSessionCreateInfo sessionInfo{XR_TYPE_SESSION_CREATE_INFO};
+    sessionInfo.next = &metalBinding;
+    sessionInfo.systemId = systemId_;
+
+    XrSession session = XR_NULL_HANDLE;
+    xrCreateSession(instance_, &sessionInfo, &session);
+
+    XrReferenceSpaceCreateInfo spaceInfo{XR_TYPE_REFERENCE_SPACE_CREATE_INFO};
+    spaceInfo.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_UNBOUNDED_MSFT;  // Unsupported
+    spaceInfo.poseInReferenceSpace = {{0, 0, 0, 1}, {0, 0, 0}};
+
+    XrSpace space = XR_NULL_HANDLE;
+    XrResult result = xrCreateReferenceSpace(session, &spaceInfo, &space);
+
+    EXPECT_EQ(result, XR_ERROR_REFERENCE_SPACE_UNSUPPORTED);
+
+    xrDestroySession(session);
+}
+
+TEST_F(SessionManagementTest, DestroySpace) {
+    void* dummyCommandQueue = reinterpret_cast<void*>(0x12345678);
+
+    XrGraphicsBindingMetalKHR metalBinding{XR_TYPE_GRAPHICS_BINDING_METAL_KHR};
+    metalBinding.commandQueue = dummyCommandQueue;
+
+    XrSessionCreateInfo sessionInfo{XR_TYPE_SESSION_CREATE_INFO};
+    sessionInfo.next = &metalBinding;
+    sessionInfo.systemId = systemId_;
+
+    XrSession session = XR_NULL_HANDLE;
+    xrCreateSession(instance_, &sessionInfo, &session);
+
+    XrReferenceSpaceCreateInfo spaceInfo{XR_TYPE_REFERENCE_SPACE_CREATE_INFO};
+    spaceInfo.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_VIEW;
+    spaceInfo.poseInReferenceSpace = {{0, 0, 0, 1}, {0, 0, 0}};
+
+    XrSpace space = XR_NULL_HANDLE;
+    xrCreateReferenceSpace(session, &spaceInfo, &space);
+
+    XrResult result = xrDestroySpace(space);
+    EXPECT_EQ(result, XR_SUCCESS);
+
+    xrDestroySession(session);
+}
+
+TEST_F(SessionManagementTest, DestroyInvalidSpace) {
+    XrSpace invalidSpace = reinterpret_cast<XrSpace>(0xDEADBEEF);
+    XrResult result = xrDestroySpace(invalidSpace);
+
+    EXPECT_EQ(result, XR_ERROR_HANDLE_INVALID);
 }

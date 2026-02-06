@@ -403,4 +403,94 @@ XrResult KinectXRRuntime::pollEvent(XrInstance instance, XrEventDataBuffer* even
     return XR_SUCCESS;
 }
 
+XrResult KinectXRRuntime::enumerateReferenceSpaces(XrSession session, uint32_t spaceCapacityInput, uint32_t* spaceCountOutput, XrReferenceSpaceType* spaces) {
+    if (!spaceCountOutput) {
+        return XR_ERROR_VALIDATION_FAILURE;
+    }
+
+    // Validate session
+    if (!isValidSession(session)) {
+        return XR_ERROR_HANDLE_INVALID;
+    }
+
+    // We support VIEW, LOCAL, and STAGE reference spaces
+    static const XrReferenceSpaceType supportedSpaces[] = {
+        XR_REFERENCE_SPACE_TYPE_VIEW,
+        XR_REFERENCE_SPACE_TYPE_LOCAL,
+        XR_REFERENCE_SPACE_TYPE_STAGE
+    };
+    static const uint32_t spaceCount = sizeof(supportedSpaces) / sizeof(supportedSpaces[0]);
+
+    // Two-call idiom
+    if (spaceCapacityInput == 0) {
+        *spaceCountOutput = spaceCount;
+        return XR_SUCCESS;
+    }
+
+    if (spaceCapacityInput < spaceCount) {
+        *spaceCountOutput = spaceCount;
+        return XR_ERROR_SIZE_INSUFFICIENT;
+    }
+
+    if (!spaces) {
+        return XR_ERROR_VALIDATION_FAILURE;
+    }
+
+    for (uint32_t i = 0; i < spaceCount; ++i) {
+        spaces[i] = supportedSpaces[i];
+    }
+
+    *spaceCountOutput = spaceCount;
+    return XR_SUCCESS;
+}
+
+XrResult KinectXRRuntime::createReferenceSpace(XrSession session, const XrReferenceSpaceCreateInfo* createInfo, XrSpace* space) {
+    if (!createInfo || !space) {
+        return XR_ERROR_VALIDATION_FAILURE;
+    }
+
+    if (createInfo->type != XR_TYPE_REFERENCE_SPACE_CREATE_INFO) {
+        return XR_ERROR_VALIDATION_FAILURE;
+    }
+
+    // Validate session
+    if (!isValidSession(session)) {
+        return XR_ERROR_HANDLE_INVALID;
+    }
+
+    // Validate reference space type
+    if (createInfo->referenceSpaceType != XR_REFERENCE_SPACE_TYPE_VIEW &&
+        createInfo->referenceSpaceType != XR_REFERENCE_SPACE_TYPE_LOCAL &&
+        createInfo->referenceSpaceType != XR_REFERENCE_SPACE_TYPE_STAGE) {
+        return XR_ERROR_REFERENCE_SPACE_UNSUPPORTED;
+    }
+
+    // Create space handle
+    std::lock_guard<std::mutex> lock(spaceMutex_);
+    XrSpace handle = reinterpret_cast<XrSpace>(nextSpaceId_++);
+
+    auto spaceData = std::make_unique<SpaceData>(handle, session, createInfo->referenceSpaceType);
+    spaces_[handle] = std::move(spaceData);
+    *space = handle;
+
+    return XR_SUCCESS;
+}
+
+XrResult KinectXRRuntime::destroySpace(XrSpace space) {
+    std::lock_guard<std::mutex> lock(spaceMutex_);
+
+    auto it = spaces_.find(space);
+    if (it == spaces_.end()) {
+        return XR_ERROR_HANDLE_INVALID;
+    }
+
+    spaces_.erase(it);
+    return XR_SUCCESS;
+}
+
+bool KinectXRRuntime::isValidSpace(XrSpace space) const {
+    std::lock_guard<std::mutex> lock(spaceMutex_);
+    return spaces_.find(space) != spaces_.end();
+}
+
 } // namespace kinect_xr

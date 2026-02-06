@@ -78,6 +78,20 @@ XRAPI_ATTR XrResult XRAPI_CALL xrPollEvent(
     XrInstance instance,
     XrEventDataBuffer* eventData);
 
+XRAPI_ATTR XrResult XRAPI_CALL xrEnumerateReferenceSpaces(
+    XrSession session,
+    uint32_t spaceCapacityInput,
+    uint32_t* spaceCountOutput,
+    XrReferenceSpaceType* spaces);
+
+XRAPI_ATTR XrResult XRAPI_CALL xrCreateReferenceSpace(
+    XrSession session,
+    const XrReferenceSpaceCreateInfo* createInfo,
+    XrSpace* space);
+
+XRAPI_ATTR XrResult XRAPI_CALL xrDestroySpace(
+    XrSpace space);
+
 // Main entry point for the runtime
 XRAPI_ATTR XrResult XRAPI_CALL xrGetInstanceProcAddr(
     XrInstance instance,
@@ -165,6 +179,18 @@ XRAPI_ATTR XrResult XRAPI_CALL xrGetInstanceProcAddr(
     }
     if (strcmp(name, "xrPollEvent") == 0) {
         *function = reinterpret_cast<PFN_xrVoidFunction>(xrPollEvent);
+        return XR_SUCCESS;
+    }
+    if (strcmp(name, "xrEnumerateReferenceSpaces") == 0) {
+        *function = reinterpret_cast<PFN_xrVoidFunction>(xrEnumerateReferenceSpaces);
+        return XR_SUCCESS;
+    }
+    if (strcmp(name, "xrCreateReferenceSpace") == 0) {
+        *function = reinterpret_cast<PFN_xrVoidFunction>(xrCreateReferenceSpace);
+        return XR_SUCCESS;
+    }
+    if (strcmp(name, "xrDestroySpace") == 0) {
+        *function = reinterpret_cast<PFN_xrVoidFunction>(xrDestroySpace);
         return XR_SUCCESS;
     }
 
@@ -516,6 +542,31 @@ XRAPI_ATTR XrResult XRAPI_CALL xrPollEvent(
     XrEventDataBuffer* eventData) {
 
     return kinect_xr::KinectXRRuntime::getInstance().pollEvent(instance, eventData);
+}
+
+// Reference space functions
+
+XRAPI_ATTR XrResult XRAPI_CALL xrEnumerateReferenceSpaces(
+    XrSession session,
+    uint32_t spaceCapacityInput,
+    uint32_t* spaceCountOutput,
+    XrReferenceSpaceType* spaces) {
+
+    return kinect_xr::KinectXRRuntime::getInstance().enumerateReferenceSpaces(session, spaceCapacityInput, spaceCountOutput, spaces);
+}
+
+XRAPI_ATTR XrResult XRAPI_CALL xrCreateReferenceSpace(
+    XrSession session,
+    const XrReferenceSpaceCreateInfo* createInfo,
+    XrSpace* space) {
+
+    return kinect_xr::KinectXRRuntime::getInstance().createReferenceSpace(session, createInfo, space);
+}
+
+XRAPI_ATTR XrResult XRAPI_CALL xrDestroySpace(
+    XrSpace space) {
+
+    return kinect_xr::KinectXRRuntime::getInstance().destroySpace(space);
 }
 
 } // extern "C"
