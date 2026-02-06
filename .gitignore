@@ -38,6 +38,7 @@ build/
 
 # user
 .DS_Store
+.cache/
 
 # ephemeral
 tmp/
