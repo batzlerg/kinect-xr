@@ -34,8 +34,7 @@
 # build
 build/
 
-# notes
-_/
+# ephemeral notes (moved to docs/planning/)
 
 # user
 .DS_Store
