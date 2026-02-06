@@ -105,7 +105,7 @@ spike/metal/
   - Render texture to screen using textured quad
   - Validation: Kinect RGB video displays in window
 
-- [ ] **M4: Upload depth frames to Metal texture**
+- [x] **M4: Upload depth frames to Metal texture**
   - Create MTLTexture for depth (R16Uint or R32Float)
   - Copy depth frame data to texture
   - Create visualization shader (depth to grayscale)
@@ -182,7 +182,13 @@ spike/metal/
 - Validation: RGB video displays in window (manual test required)
 
 ### Milestone 4
--
+- Created 640x480 R16Uint Metal texture for depth data
+- Implemented depth texture upload (direct 16-bit values)
+- Created depth visualization shader (grayscale, normalized to 0-2047)
+- Split-screen rendering (RGB left, depth right) using viewports
+- Wired Kinect depth callback to update texture
+- **Decision Q3:** Option A (raw 11-bit as grayscale, inverted for visibility)
+- Validation: Side-by-side RGB + depth display (manual test required)
 
 ### Milestone 5
 -

@@ -5,15 +5,18 @@
 #include <iostream>
 #include <atomic>
 
-// Metal renderer that displays Kinect RGB texture
+// Metal renderer that displays Kinect RGB and depth textures
 @interface Renderer : NSObject <MTKViewDelegate>
 @property (nonatomic, strong) id<MTLDevice> device;
 @property (nonatomic, strong) id<MTLCommandQueue> commandQueue;
-@property (nonatomic, strong) id<MTLRenderPipelineState> pipelineState;
+@property (nonatomic, strong) id<MTLRenderPipelineState> rgbPipeline;
+@property (nonatomic, strong) id<MTLRenderPipelineState> depthPipeline;
 @property (nonatomic, strong) id<MTLTexture> rgbTexture;
+@property (nonatomic, strong) id<MTLTexture> depthTexture;
 @property (nonatomic, strong) id<MTLSamplerState> sampler;
 @property (nonatomic, strong) dispatch_queue_t textureUpdateQueue;
 - (void)updateRGBTextureWithData:(const void*)data;
+- (void)updateDepthTextureWithData:(const void*)data;
 @end
 
 @implementation Renderer
@@ -26,14 +29,26 @@
         _textureUpdateQueue = dispatch_queue_create("com.kinect.textureUpdate", DISPATCH_QUEUE_SERIAL);
 
         // Create RGB texture (640x480 Kinect resolution)
-        MTLTextureDescriptor *textureDesc = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatBGRA8Unorm
-                                                                                               width:640
-                                                                                              height:480
-                                                                                           mipmapped:NO];
-        textureDesc.usage = MTLTextureUsageShaderRead;
-        _rgbTexture = [_device newTextureWithDescriptor:textureDesc];
+        MTLTextureDescriptor *rgbTextureDesc = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatBGRA8Unorm
+                                                                                                   width:640
+                                                                                                  height:480
+                                                                                               mipmapped:NO];
+        rgbTextureDesc.usage = MTLTextureUsageShaderRead;
+        _rgbTexture = [_device newTextureWithDescriptor:rgbTextureDesc];
         if (!_rgbTexture) {
             NSLog(@"Failed to create RGB texture");
+            return nil;
+        }
+
+        // Create depth texture (640x480, R16Uint for 11-bit depth values)
+        MTLTextureDescriptor *depthTextureDesc = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatR16Uint
+                                                                                                     width:640
+                                                                                                    height:480
+                                                                                                 mipmapped:NO];
+        depthTextureDesc.usage = MTLTextureUsageShaderRead;
+        _depthTexture = [_device newTextureWithDescriptor:depthTextureDesc];
+        if (!_depthTexture) {
+            NSLog(@"Failed to create depth texture");
             return nil;
         }
 
@@ -54,20 +69,34 @@
         }
 
         id<MTLFunction> vertexFunction = [library newFunctionWithName:@"vertexShader"];
-        id<MTLFunction> fragmentFunction = [library newFunctionWithName:@"textureFragment"];
+        id<MTLFunction> rgbFragmentFunction = [library newFunctionWithName:@"textureFragment"];
+        id<MTLFunction> depthFragmentFunction = [library newFunctionWithName:@"depthFragment"];
 
-        MTLRenderPipelineDescriptor *pipelineDescriptor = [[MTLRenderPipelineDescriptor alloc] init];
-        pipelineDescriptor.vertexFunction = vertexFunction;
-        pipelineDescriptor.fragmentFunction = fragmentFunction;
-        pipelineDescriptor.colorAttachments[0].pixelFormat = mtkView.colorPixelFormat;
+        // RGB pipeline
+        MTLRenderPipelineDescriptor *rgbPipelineDesc = [[MTLRenderPipelineDescriptor alloc] init];
+        rgbPipelineDesc.vertexFunction = vertexFunction;
+        rgbPipelineDesc.fragmentFunction = rgbFragmentFunction;
+        rgbPipelineDesc.colorAttachments[0].pixelFormat = mtkView.colorPixelFormat;
 
-        _pipelineState = [_device newRenderPipelineStateWithDescriptor:pipelineDescriptor error:&error];
-        if (!_pipelineState) {
-            NSLog(@"Failed to create pipeline state: %@", error);
+        _rgbPipeline = [_device newRenderPipelineStateWithDescriptor:rgbPipelineDesc error:&error];
+        if (!_rgbPipeline) {
+            NSLog(@"Failed to create RGB pipeline state: %@", error);
             return nil;
         }
 
-        std::cout << "Renderer initialized with 640x480 BGRA texture" << std::endl;
+        // Depth pipeline
+        MTLRenderPipelineDescriptor *depthPipelineDesc = [[MTLRenderPipelineDescriptor alloc] init];
+        depthPipelineDesc.vertexFunction = vertexFunction;
+        depthPipelineDesc.fragmentFunction = depthFragmentFunction;
+        depthPipelineDesc.colorAttachments[0].pixelFormat = mtkView.colorPixelFormat;
+
+        _depthPipeline = [_device newRenderPipelineStateWithDescriptor:depthPipelineDesc error:&error];
+        if (!_depthPipeline) {
+            NSLog(@"Failed to create depth pipeline state: %@", error);
+            return nil;
+        }
+
+        std::cout << "Renderer initialized with 640x480 BGRA+R16Uint textures" << std::endl;
     }
     return self;
 }
@@ -105,6 +134,24 @@
     });
 }
 
+- (void)updateDepthTextureWithData:(const void*)data {
+    if (!data || !_depthTexture) return;
+
+    // Kinect depth is 640x480 16-bit values (11-bit depth, 0-2047)
+    dispatch_async(_textureUpdateQueue, ^{
+        const uint16_t* depth = (const uint16_t*)data;
+        const size_t width = 640;
+        const size_t height = 480;
+
+        // Upload directly as R16Uint (shader will visualize)
+        MTLRegion region = MTLRegionMake2D(0, 0, width, height);
+        [self.depthTexture replaceRegion:region
+                             mipmapLevel:0
+                               withBytes:depth
+                             bytesPerRow:width * sizeof(uint16_t)];
+    });
+}
+
 - (void)mtkView:(MTKView *)view drawableSizeWillChange:(CGSize)size {
     // Handle resize if needed
 }
@@ -118,13 +165,24 @@
     if (renderPassDescriptor) {
         // Create render encoder
         id<MTLRenderCommandEncoder> renderEncoder = [commandBuffer renderCommandEncoderWithDescriptor:renderPassDescriptor];
-        [renderEncoder setRenderPipelineState:_pipelineState];
 
-        // Bind texture and sampler
+        CGSize drawableSize = view.drawableSize;
+        float halfWidth = drawableSize.width / 2.0f;
+
+        // Left half: RGB
+        MTLViewport leftViewport = {0, 0, halfWidth, drawableSize.height, 0, 1};
+        [renderEncoder setViewport:leftViewport];
+        [renderEncoder setRenderPipelineState:_rgbPipeline];
         [renderEncoder setFragmentTexture:_rgbTexture atIndex:0];
         [renderEncoder setFragmentSamplerState:_sampler atIndex:0];
+        [renderEncoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3];
 
-        // Draw fullscreen triangle (covers entire viewport)
+        // Right half: Depth
+        MTLViewport rightViewport = {halfWidth, 0, halfWidth, drawableSize.height, 0, 1};
+        [renderEncoder setViewport:rightViewport];
+        [renderEncoder setRenderPipelineState:_depthPipeline];
+        [renderEncoder setFragmentTexture:_depthTexture atIndex:0];
+        [renderEncoder setFragmentSamplerState:_sampler atIndex:0];
         [renderEncoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3];
 
         [renderEncoder endEncoding];
@@ -259,7 +317,8 @@
             std::cout << "Depth frame " << selfPtr->depthFrameCount_.load()
                      << " at " << timestamp << std::endl;
         }
-        // Depth visualization in M4
+        // Update depth texture
+        [selfPtr.renderer updateDepthTextureWithData:depth];
     });
 
     // Set view as window content

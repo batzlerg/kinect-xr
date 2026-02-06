@@ -47,3 +47,19 @@ fragment float4 textureFragment(VertexOut in [[stage_in]],
     float4 color = rgbTexture.sample(textureSampler, in.texCoord);
     return color;
 }
+
+// Fragment shader: depth visualization (for M4)
+fragment float4 depthFragment(VertexOut in [[stage_in]],
+                              texture2d<uint> depthTexture [[texture(0)]],
+                              sampler textureSampler [[sampler(0)]]) {
+    // Sample depth texture (R16Uint)
+    uint2 texCoord = uint2(in.texCoord * float2(depthTexture.get_width(), depthTexture.get_height()));
+    uint depthValue = depthTexture.read(texCoord).r;
+
+    // Normalize 11-bit depth (0-2047) to grayscale (0-1)
+    // Invert so closer = brighter
+    float normalized = 1.0 - (float(depthValue) / 2047.0);
+
+    // Return grayscale
+    return float4(normalized, normalized, normalized, 1.0);
+}
