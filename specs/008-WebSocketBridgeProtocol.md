@@ -229,15 +229,15 @@ ws.onmessage = (event) => {
 - [x] Calculate bandwidth requirements
 
 ### M2: Test Client Implementation
-- [ ] Create Node.js test client
-- [ ] Validate protocol against spec
-- [ ] Measure frame timing
-- [ ] Test reconnection behavior
+- [x] Create Node.js test client
+- [x] Validate protocol against spec
+- [x] Measure frame timing
+- [ ] Test reconnection behavior (requires server)
 
 ### M3: Protocol Documentation
-- [ ] Add protocol to docs/ARCHITECTURE.md
-- [ ] Create example client snippet
-- [ ] Document error handling patterns
+- [x] Add protocol to docs/ARCHITECTURE.md
+- [x] Create example client snippet (in test-client.js)
+- [x] Document error handling patterns
 
 ## Testing Strategy
 

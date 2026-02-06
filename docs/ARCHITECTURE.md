@@ -338,10 +338,62 @@ kinect-xr/
 3. **Parallel pipelines** - Depth and RGB processing in separate threads
 4. **Metal compute shaders** - GPU-accelerated depth conversion (Phase 4)
 
+## WebXR Integration Architecture (macOS)
+
+Due to Chrome's lack of macOS OpenXR support, WebXR integration uses a WebSocket bridge pattern rather than native OpenXR discovery:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    Browser (Chrome/Firefox)                     │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │  P5.js / Three.js Application                            │   │
+│  └────────────────────────┬─────────────────────────────────┘   │
+│                           │ navigator.xr.requestSession()       │
+│  ┌────────────────────────▼─────────────────────────────────┐   │
+│  │  WebXR Polyfill (JavaScript)                             │   │
+│  │  - Custom XRDevice backend                               │   │
+│  │  - WebSocket client                                      │   │
+│  └────────────────────────┬─────────────────────────────────┘   │
+└───────────────────────────┼─────────────────────────────────────┘
+                            │ ws://localhost:8765/kinect
+┌───────────────────────────▼─────────────────────────────────────┐
+│  WebSocket Bridge Server (C++)                                  │
+│  - JSON control messages (hello, subscribe, status, error)      │
+│  - Binary frames: 8-byte header + pixel data                    │
+│  - RGB: 640x480 RGB888 @ 30Hz (27.6 MB/s)                       │
+│  - Depth: 640x480 uint16 @ 30Hz (18.4 MB/s)                     │
+└───────────────────────────┬─────────────────────────────────────┘
+                            │
+┌───────────────────────────▼─────────────────────────────────────┐
+│  KinectDevice (Phase 1)                                         │
+│  - 30 Hz RGB + Depth streaming                                  │
+│  - Thread-safe frame cache                                      │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### WebSocket Protocol
+
+The bridge uses a simple protocol (see `specs/008-WebSocketBridgeProtocol.md`):
+
+1. **Connection:** Client connects to `ws://localhost:8765/kinect`
+2. **Hello:** Server sends capabilities (resolution, frame rate, formats)
+3. **Subscribe:** Client requests streams (`rgb`, `depth`, or both)
+4. **Frames:** Server sends binary frames with 8-byte header (frame ID + stream type)
+5. **Status:** Periodic updates on connection state and dropped frames
+
+### Why Not Native OpenXR?
+
+Chrome's WebXR implementation requires:
+- Windows or Android only
+- `XR_EXT_win32_appcontainer_compatible` extension
+- D3D11 graphics backend (not Metal)
+
+The WebSocket bridge enables WebXR on macOS while maintaining the native OpenXR runtime for Unity/Unreal/native applications.
+
 ## Security Considerations
 
 - **USB access:** Requires appropriate permissions on macOS
-- **No network:** Runtime is local-only (WebSocket bridge is separate application)
+- **WebSocket bridge:** localhost-only, no authentication (personal use)
 - **No authentication:** Personal use, not multi-user
 
 ## Future Extensibility

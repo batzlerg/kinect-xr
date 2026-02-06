@@ -1,0 +1,13 @@
+{
+  "name": "kinect-bridge-test-client",
+  "version": "1.0.0",
+  "description": "Test client for Kinect XR WebSocket bridge protocol",
+  "type": "module",
+  "scripts": {
+    "test": "node test-client.js",
+    "benchmark": "node test-client.js --benchmark"
+  },
+  "dependencies": {
+    "ws": "^8.16.0"
+  }
+}
