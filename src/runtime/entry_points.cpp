@@ -67,6 +67,17 @@ XRAPI_ATTR XrResult XRAPI_CALL xrCreateSession(
 XRAPI_ATTR XrResult XRAPI_CALL xrDestroySession(
     XrSession session);
 
+XRAPI_ATTR XrResult XRAPI_CALL xrBeginSession(
+    XrSession session,
+    const XrSessionBeginInfo* beginInfo);
+
+XRAPI_ATTR XrResult XRAPI_CALL xrEndSession(
+    XrSession session);
+
+XRAPI_ATTR XrResult XRAPI_CALL xrPollEvent(
+    XrInstance instance,
+    XrEventDataBuffer* eventData);
+
 // Main entry point for the runtime
 XRAPI_ATTR XrResult XRAPI_CALL xrGetInstanceProcAddr(
     XrInstance instance,
@@ -142,6 +153,18 @@ XRAPI_ATTR XrResult XRAPI_CALL xrGetInstanceProcAddr(
     }
     if (strcmp(name, "xrDestroySession") == 0) {
         *function = reinterpret_cast<PFN_xrVoidFunction>(xrDestroySession);
+        return XR_SUCCESS;
+    }
+    if (strcmp(name, "xrBeginSession") == 0) {
+        *function = reinterpret_cast<PFN_xrVoidFunction>(xrBeginSession);
+        return XR_SUCCESS;
+    }
+    if (strcmp(name, "xrEndSession") == 0) {
+        *function = reinterpret_cast<PFN_xrVoidFunction>(xrEndSession);
+        return XR_SUCCESS;
+    }
+    if (strcmp(name, "xrPollEvent") == 0) {
+        *function = reinterpret_cast<PFN_xrVoidFunction>(xrPollEvent);
         return XR_SUCCESS;
     }
 
@@ -473,6 +496,26 @@ XRAPI_ATTR XrResult XRAPI_CALL xrDestroySession(
     XrSession session) {
 
     return kinect_xr::KinectXRRuntime::getInstance().destroySession(session);
+}
+
+XRAPI_ATTR XrResult XRAPI_CALL xrBeginSession(
+    XrSession session,
+    const XrSessionBeginInfo* beginInfo) {
+
+    return kinect_xr::KinectXRRuntime::getInstance().beginSession(session, beginInfo);
+}
+
+XRAPI_ATTR XrResult XRAPI_CALL xrEndSession(
+    XrSession session) {
+
+    return kinect_xr::KinectXRRuntime::getInstance().endSession(session);
+}
+
+XRAPI_ATTR XrResult XRAPI_CALL xrPollEvent(
+    XrInstance instance,
+    XrEventDataBuffer* eventData) {
+
+    return kinect_xr::KinectXRRuntime::getInstance().pollEvent(instance, eventData);
 }
 
 } // extern "C"

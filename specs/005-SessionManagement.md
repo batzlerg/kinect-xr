@@ -119,7 +119,7 @@ Runtime supports full session lifecycle. Applications can create sessions with M
   - Add to xrGetInstanceProcAddr
   - Validation: Create/destroy works
 
-- [ ] **M4: Session state machine and begin/end**
+- [x] **M4: Session state machine and begin/end**
   - Implement state machine in SessionData
   - Implement event queue
   - Implement xrPollEvent
@@ -194,7 +194,15 @@ Runtime supports full session lifecycle. Applications can create sessions with M
 - All tests passing - session lifecycle working correctly
 
 ### Milestone 4
-- (To be filled during implementation)
+- Implemented session state machine with automatic transitions (READY → SYNCHRONIZED → VISIBLE → FOCUSED)
+- Added event queue to InstanceData for session state change events
+- Implemented xrPollEvent - returns events from queue, XR_EVENT_UNAVAILABLE when empty
+- Implemented xrBeginSession - validates view config, transitions through active states
+- Implemented xrEndSession - transitions to STOPPING then IDLE
+- Session creation now queues READY event automatically
+- Helper functions: toXrSessionState() and queueSessionStateChanged()
+- 5 additional unit tests for state machine and event queue
+- All tests passing - state machine working correctly
 
 ### Milestone 5
 - (To be filled during implementation)

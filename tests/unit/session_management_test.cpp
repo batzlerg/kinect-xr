@@ -175,3 +175,161 @@ TEST_F(SessionManagementTest, DestroySessionTwice) {
     result = xrDestroySession(session);
     EXPECT_EQ(result, XR_ERROR_HANDLE_INVALID);
 }
+
+// Session State Tests
+
+TEST_F(SessionManagementTest, SessionStateTransitionsToReady) {
+    void* dummyCommandQueue = reinterpret_cast<void*>(0x12345678);
+
+    XrGraphicsBindingMetalKHR metalBinding{XR_TYPE_GRAPHICS_BINDING_METAL_KHR};
+    metalBinding.commandQueue = dummyCommandQueue;
+
+    XrSessionCreateInfo sessionInfo{XR_TYPE_SESSION_CREATE_INFO};
+    sessionInfo.next = &metalBinding;
+    sessionInfo.systemId = systemId_;
+
+    XrSession session = XR_NULL_HANDLE;
+    XrResult result = xrCreateSession(instance_, &sessionInfo, &session);
+    ASSERT_EQ(result, XR_SUCCESS);
+
+    // Should have READY state event
+    XrEventDataBuffer event{XR_TYPE_EVENT_DATA_BUFFER};
+    result = xrPollEvent(instance_, &event);
+    ASSERT_EQ(result, XR_SUCCESS);
+
+    XrEventDataSessionStateChanged* stateEvent = reinterpret_cast<XrEventDataSessionStateChanged*>(&event);
+    EXPECT_EQ(stateEvent->type, XR_TYPE_EVENT_DATA_SESSION_STATE_CHANGED);
+    EXPECT_EQ(stateEvent->session, session);
+    EXPECT_EQ(stateEvent->state, XR_SESSION_STATE_READY);
+
+    xrDestroySession(session);
+}
+
+TEST_F(SessionManagementTest, BeginSessionTransitionsCorrectly) {
+    void* dummyCommandQueue = reinterpret_cast<void*>(0x12345678);
+
+    XrGraphicsBindingMetalKHR metalBinding{XR_TYPE_GRAPHICS_BINDING_METAL_KHR};
+    metalBinding.commandQueue = dummyCommandQueue;
+
+    XrSessionCreateInfo sessionInfo{XR_TYPE_SESSION_CREATE_INFO};
+    sessionInfo.next = &metalBinding;
+    sessionInfo.systemId = systemId_;
+
+    XrSession session = XR_NULL_HANDLE;
+    xrCreateSession(instance_, &sessionInfo, &session);
+
+    // Clear READY event
+    XrEventDataBuffer event{XR_TYPE_EVENT_DATA_BUFFER};
+    xrPollEvent(instance_, &event);
+
+    // Begin session
+    XrSessionBeginInfo beginInfo{XR_TYPE_SESSION_BEGIN_INFO};
+    beginInfo.primaryViewConfigurationType = XR_VIEW_CONFIGURATION_TYPE_PRIMARY_MONO;
+
+    XrResult result = xrBeginSession(session, &beginInfo);
+    ASSERT_EQ(result, XR_SUCCESS);
+
+    // Should have SYNCHRONIZED, VISIBLE, FOCUSED events
+    event.type = XR_TYPE_EVENT_DATA_BUFFER;
+    result = xrPollEvent(instance_, &event);
+    ASSERT_EQ(result, XR_SUCCESS);
+    XrEventDataSessionStateChanged* stateEvent = reinterpret_cast<XrEventDataSessionStateChanged*>(&event);
+    EXPECT_EQ(stateEvent->state, XR_SESSION_STATE_SYNCHRONIZED);
+
+    event.type = XR_TYPE_EVENT_DATA_BUFFER;
+    result = xrPollEvent(instance_, &event);
+    ASSERT_EQ(result, XR_SUCCESS);
+    stateEvent = reinterpret_cast<XrEventDataSessionStateChanged*>(&event);
+    EXPECT_EQ(stateEvent->state, XR_SESSION_STATE_VISIBLE);
+
+    event.type = XR_TYPE_EVENT_DATA_BUFFER;
+    result = xrPollEvent(instance_, &event);
+    ASSERT_EQ(result, XR_SUCCESS);
+    stateEvent = reinterpret_cast<XrEventDataSessionStateChanged*>(&event);
+    EXPECT_EQ(stateEvent->state, XR_SESSION_STATE_FOCUSED);
+
+    xrEndSession(session);
+    xrDestroySession(session);
+}
+
+TEST_F(SessionManagementTest, EndSessionTransitionsCorrectly) {
+    void* dummyCommandQueue = reinterpret_cast<void*>(0x12345678);
+
+    XrGraphicsBindingMetalKHR metalBinding{XR_TYPE_GRAPHICS_BINDING_METAL_KHR};
+    metalBinding.commandQueue = dummyCommandQueue;
+
+    XrSessionCreateInfo sessionInfo{XR_TYPE_SESSION_CREATE_INFO};
+    sessionInfo.next = &metalBinding;
+    sessionInfo.systemId = systemId_;
+
+    XrSession session = XR_NULL_HANDLE;
+    xrCreateSession(instance_, &sessionInfo, &session);
+
+    // Clear READY event
+    XrEventDataBuffer event{XR_TYPE_EVENT_DATA_BUFFER};
+    xrPollEvent(instance_, &event);
+
+    // Begin session
+    XrSessionBeginInfo beginInfo{XR_TYPE_SESSION_BEGIN_INFO};
+    beginInfo.primaryViewConfigurationType = XR_VIEW_CONFIGURATION_TYPE_PRIMARY_MONO;
+    xrBeginSession(session, &beginInfo);
+
+    // Clear begin events
+    event.type = XR_TYPE_EVENT_DATA_BUFFER;
+    while (xrPollEvent(instance_, &event) == XR_SUCCESS) {
+        event.type = XR_TYPE_EVENT_DATA_BUFFER;
+    }
+
+    // End session
+    XrResult result = xrEndSession(session);
+    ASSERT_EQ(result, XR_SUCCESS);
+
+    // Should have STOPPING, IDLE events
+    event.type = XR_TYPE_EVENT_DATA_BUFFER;
+    result = xrPollEvent(instance_, &event);
+    ASSERT_EQ(result, XR_SUCCESS);
+    XrEventDataSessionStateChanged* stateEvent = reinterpret_cast<XrEventDataSessionStateChanged*>(&event);
+    EXPECT_EQ(stateEvent->state, XR_SESSION_STATE_STOPPING);
+
+    event.type = XR_TYPE_EVENT_DATA_BUFFER;
+    result = xrPollEvent(instance_, &event);
+    ASSERT_EQ(result, XR_SUCCESS);
+    stateEvent = reinterpret_cast<XrEventDataSessionStateChanged*>(&event);
+    EXPECT_EQ(stateEvent->state, XR_SESSION_STATE_IDLE);
+
+    xrDestroySession(session);
+}
+
+TEST_F(SessionManagementTest, PollEventReturnsUnavailableWhenEmpty) {
+    XrEventDataBuffer event{XR_TYPE_EVENT_DATA_BUFFER};
+    XrResult result = xrPollEvent(instance_, &event);
+
+    EXPECT_EQ(result, XR_EVENT_UNAVAILABLE);
+}
+
+TEST_F(SessionManagementTest, BeginSessionUnsupportedViewConfig) {
+    void* dummyCommandQueue = reinterpret_cast<void*>(0x12345678);
+
+    XrGraphicsBindingMetalKHR metalBinding{XR_TYPE_GRAPHICS_BINDING_METAL_KHR};
+    metalBinding.commandQueue = dummyCommandQueue;
+
+    XrSessionCreateInfo sessionInfo{XR_TYPE_SESSION_CREATE_INFO};
+    sessionInfo.next = &metalBinding;
+    sessionInfo.systemId = systemId_;
+
+    XrSession session = XR_NULL_HANDLE;
+    xrCreateSession(instance_, &sessionInfo, &session);
+
+    // Clear READY event
+    XrEventDataBuffer event{XR_TYPE_EVENT_DATA_BUFFER};
+    xrPollEvent(instance_, &event);
+
+    // Try to begin with unsupported view config
+    XrSessionBeginInfo beginInfo{XR_TYPE_SESSION_BEGIN_INFO};
+    beginInfo.primaryViewConfigurationType = XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO;
+
+    XrResult result = xrBeginSession(session, &beginInfo);
+    EXPECT_EQ(result, XR_ERROR_VIEW_CONFIGURATION_TYPE_UNSUPPORTED);
+
+    xrDestroySession(session);
+}

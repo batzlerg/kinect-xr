@@ -40,6 +40,7 @@ struct SessionData {
     XrInstance instance;  // Parent instance
     XrSystemId systemId;  // Associated system
     SessionState state;
+    XrViewConfigurationType viewConfigurationType;
 
     // Metal graphics binding (stored as void* to avoid Metal headers in this header)
     void* metalCommandQueue;
@@ -49,6 +50,7 @@ struct SessionData {
         , instance(inst)
         , systemId(sysId)
         , state(SessionState::IDLE)
+        , viewConfigurationType(XR_VIEW_CONFIGURATION_TYPE_MAX_ENUM)
         , metalCommandQueue(nullptr) {}
 };
 
@@ -63,6 +65,9 @@ struct InstanceData {
 
     // System is per-instance (Kinect doesn't change while runtime is active)
     std::unique_ptr<SystemData> system;
+
+    // Event queue for this instance
+    std::queue<XrEventDataBuffer> eventQueue;
 
     InstanceData(XrInstance h) : handle(h), applicationVersion(0), engineVersion(0), apiVersion(XR_CURRENT_API_VERSION) {}
 };
@@ -99,6 +104,13 @@ public:
     // Session validation
     bool isValidSession(XrSession session) const;
     SessionData* getSessionData(XrSession session);
+
+    // Session lifecycle
+    XrResult beginSession(XrSession session, const XrSessionBeginInfo* beginInfo);
+    XrResult endSession(XrSession session);
+
+    // Event queue
+    XrResult pollEvent(XrInstance instance, XrEventDataBuffer* eventData);
 
     // Delete copy and move constructors/operators
     KinectXRRuntime(const KinectXRRuntime&) = delete;
