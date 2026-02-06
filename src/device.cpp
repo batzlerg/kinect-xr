@@ -192,10 +192,10 @@ void KinectDevice::depthCallback(freenect_device* dev, void* depth, uint32_t tim
     return;
   }
 
-  // For now, just acknowledge receipt of depth data
-  // Future phases will process and forward this data
-  (void)depth;      // Suppress unused parameter warning
-  (void)timestamp;  // Suppress unused parameter warning
+  // Forward to user callback if registered
+  if (device->depth_callback_) {
+    device->depth_callback_(depth, timestamp);
+  }
 }
 
 void KinectDevice::videoCallback(freenect_device* dev, void* rgb, uint32_t timestamp) {
@@ -205,10 +205,18 @@ void KinectDevice::videoCallback(freenect_device* dev, void* rgb, uint32_t times
     return;
   }
 
-  // For now, just acknowledge receipt of video data
-  // Future phases will process and forward this data
-  (void)rgb;        // Suppress unused parameter warning
-  (void)timestamp;  // Suppress unused parameter warning
+  // Forward to user callback if registered
+  if (device->video_callback_) {
+    device->video_callback_(rgb, timestamp);
+  }
+}
+
+void KinectDevice::setDepthCallback(DepthCallback callback) {
+  depth_callback_ = callback;
+}
+
+void KinectDevice::setVideoCallback(VideoCallback callback) {
+  video_callback_ = callback;
 }
 
 }  // namespace kinect_xr

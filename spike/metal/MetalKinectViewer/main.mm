@@ -1,6 +1,9 @@
 #import <Cocoa/Cocoa.h>
 #import <Metal/Metal.h>
 #import <MetalKit/MetalKit.h>
+#include <kinect_xr/device.h>
+#include <iostream>
+#include <atomic>
 
 // Simple Metal renderer that displays solid color
 @interface Renderer : NSObject <MTKViewDelegate>
@@ -73,13 +76,92 @@
 @end
 
 // Application delegate
-@interface AppDelegate : NSObject <NSApplicationDelegate>
+@interface AppDelegate : NSObject <NSApplicationDelegate> {
+    std::shared_ptr<kinect_xr::KinectDevice> kinectDevice_;
+    std::atomic<uint64_t> videoFrameCount_;
+    std::atomic<uint64_t> depthFrameCount_;
+}
 @property (strong, nonatomic) NSWindow *window;
 @end
 
 @implementation AppDelegate
 
+- (instancetype)init {
+    self = [super init];
+    if (self) {
+        videoFrameCount_ = 0;
+        depthFrameCount_ = 0;
+    }
+    return self;
+}
+
 - (void)applicationDidFinishLaunching:(NSNotification *)notification {
+    // Initialize Kinect device
+    kinectDevice_ = std::make_shared<kinect_xr::KinectDevice>();
+
+    // Check for Kinect
+    int deviceCount = kinect_xr::KinectDevice::getDeviceCount();
+    if (deviceCount == 0) {
+        NSAlert *alert = [[NSAlert alloc] init];
+        [alert setMessageText:@"No Kinect device found"];
+        [alert setInformativeText:@"Please connect a Kinect device and restart."];
+        [alert runModal];
+        [NSApp terminate:nil];
+        return;
+    }
+
+    std::cout << "Found " << deviceCount << " Kinect device(s)" << std::endl;
+
+    // Initialize device
+    kinect_xr::DeviceConfig config;
+    config.enableRGB = true;
+    config.enableDepth = true;
+    config.enableMotor = false;  // Don't need motor for this spike
+
+    kinect_xr::DeviceError error = kinectDevice_->initialize(config);
+    if (error != kinect_xr::DeviceError::None) {
+        NSAlert *alert = [[NSAlert alloc] init];
+        [alert setMessageText:@"Failed to initialize Kinect"];
+        [alert setInformativeText:[NSString stringWithFormat:@"Error: %s",
+                                   kinect_xr::errorToString(error).c_str()]];
+        [alert runModal];
+        [NSApp terminate:nil];
+        return;
+    }
+
+    std::cout << "Kinect initialized successfully" << std::endl;
+
+    // Set up callbacks
+    AppDelegate* __unsafe_unretained selfPtr = self;
+    kinectDevice_->setVideoCallback([selfPtr](const void* rgb, uint32_t timestamp) {
+        selfPtr->videoFrameCount_++;
+        if (selfPtr->videoFrameCount_ % 30 == 0) {
+            std::cout << "Video frame " << selfPtr->videoFrameCount_.load()
+                     << " at " << timestamp << std::endl;
+        }
+    });
+
+    kinectDevice_->setDepthCallback([selfPtr](const void* depth, uint32_t timestamp) {
+        selfPtr->depthFrameCount_++;
+        if (selfPtr->depthFrameCount_ % 30 == 0) {
+            std::cout << "Depth frame " << selfPtr->depthFrameCount_.load()
+                     << " at " << timestamp << std::endl;
+        }
+    });
+
+    // Start streaming
+    error = kinectDevice_->startStreams();
+    if (error != kinect_xr::DeviceError::None) {
+        NSAlert *alert = [[NSAlert alloc] init];
+        [alert setMessageText:@"Failed to start streams"];
+        [alert setInformativeText:[NSString stringWithFormat:@"Error: %s",
+                                   kinect_xr::errorToString(error).c_str()]];
+        [alert runModal];
+        [NSApp terminate:nil];
+        return;
+    }
+
+    std::cout << "Streams started" << std::endl;
     // Create window
     NSRect frame = NSMakeRect(0, 0, 1280, 480);
     NSUInteger styleMask = NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskResizable;
@@ -113,6 +195,15 @@
     // Set view as window content
     [_window setContentView:mtkView];
     [_window makeKeyAndOrderFront:nil];
+}
+
+- (void)applicationWillTerminate:(NSNotification *)notification {
+    if (kinectDevice_ && kinectDevice_->isStreaming()) {
+        std::cout << "Stopping streams..." << std::endl;
+        kinectDevice_->stopStreams();
+    }
+    std::cout << "Total frames - Video: " << videoFrameCount_.load()
+             << ", Depth: " << depthFrameCount_.load() << std::endl;
 }
 
 - (BOOL)applicationShouldTerminateAfterLastWindowClosed:(NSApplication *)sender {

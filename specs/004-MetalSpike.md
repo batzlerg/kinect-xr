@@ -91,7 +91,7 @@ spike/metal/
   - Render solid color to verify Metal pipeline works
   - Validation: Window displays, no crashes
 
-- [ ] **M2: Integrate KinectDevice**
+- [x] **M2: Integrate KinectDevice**
   - Link spike app against kinect_xr_device library
   - Initialize KinectDevice in app startup
   - Start streams and verify callbacks fire
@@ -165,7 +165,12 @@ spike/metal/
 - Validation: Window displays green, no crashes
 
 ### Milestone 2
--
+- Extended KinectDevice with callback registration (setVideoCallback, setDepthCallback)
+- Updated device.h/cpp to forward libfreenect callbacks to user callbacks
+- Linked Metal spike against kinect_xr_device library
+- Integrated Kinect initialization into AppDelegate
+- Set up frame callbacks with frame counters
+- Validation: App initializes Kinect, starts streams, logs frame receipt
 
 ### Milestone 3
 -

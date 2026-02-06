@@ -7,6 +7,7 @@
 
 #include <memory>
 #include <string>
+#include <functional>
 
 struct _freenect_context;
 typedef struct _freenect_context freenect_context;
@@ -36,6 +37,13 @@ struct DeviceConfig {
   bool enableMotor = true;  ///< Enable motor control
   int deviceId = 0;         ///< Device ID to open (todo: buy another Kinect and test for real)
 };
+
+/**
+ * @brief Callback types for frame data
+ * @note For spike/prototyping use. Production code should use proper threading/buffering.
+ */
+using DepthCallback = std::function<void(const void* depth, uint32_t timestamp)>;
+using VideoCallback = std::function<void(const void* rgb, uint32_t timestamp)>;
 
 /**
  * @brief Main class for interacting with Kinect hardware
@@ -93,12 +101,30 @@ class KinectDevice {
    */
   static int getDeviceCount();
 
+  /**
+   * @brief Register callback for depth frames
+   * @param callback Function to call when depth frame arrives
+   * @note For spike/prototyping use. Called from libfreenect thread.
+   */
+  void setDepthCallback(DepthCallback callback);
+
+  /**
+   * @brief Register callback for RGB frames
+   * @param callback Function to call when RGB frame arrives
+   * @note For spike/prototyping use. Called from libfreenect thread.
+   */
+  void setVideoCallback(VideoCallback callback);
+
  private:
   freenect_context* ctx_;
   freenect_device* dev_;
   bool initialized_;
   bool streaming_;
   DeviceConfig config_;
+
+  // User callbacks
+  DepthCallback depth_callback_;
+  VideoCallback video_callback_;
 
   // Static C callback functions for libfreenect
   static void depthCallback(freenect_device* dev, void* depth, uint32_t timestamp);
