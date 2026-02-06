@@ -61,7 +61,16 @@ FetchContent_Declare(
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
+# OpenXR SDK
+FetchContent_Declare(
+  OpenXR
+  GIT_REPOSITORY https://github.com/KhronosGroup/OpenXR-SDK-Source.git
+  GIT_TAG release-1.1.54
+)
+FetchContent_MakeAvailable(OpenXR)
+
 add_subdirectory(tests)
+add_subdirectory(tests/spike)
 
 
 # output configuration info for debugging
