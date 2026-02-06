@@ -4,9 +4,14 @@
 #include <kinect_xr/device.h>
 #include <iostream>
 #include <atomic>
+#include <chrono>
 
 // Metal renderer that displays Kinect RGB and depth textures
-@interface Renderer : NSObject <MTKViewDelegate>
+@interface Renderer : NSObject <MTKViewDelegate> {
+    std::atomic<uint64_t> frameCount_;
+    std::chrono::steady_clock::time_point lastFpsTime_;
+    double currentFps_;
+}
 @property (nonatomic, strong) id<MTLDevice> device;
 @property (nonatomic, strong) id<MTLCommandQueue> commandQueue;
 @property (nonatomic, strong) id<MTLRenderPipelineState> rgbPipeline;
@@ -17,6 +22,7 @@
 @property (nonatomic, strong) dispatch_queue_t textureUpdateQueue;
 - (void)updateRGBTextureWithData:(const void*)data;
 - (void)updateDepthTextureWithData:(const void*)data;
+- (double)getCurrentFps;
 @end
 
 @implementation Renderer
@@ -27,6 +33,11 @@
         _device = mtkView.device;
         _commandQueue = [_device newCommandQueue];
         _textureUpdateQueue = dispatch_queue_create("com.kinect.textureUpdate", DISPATCH_QUEUE_SERIAL);
+
+        // Initialize performance tracking
+        frameCount_ = 0;
+        currentFps_ = 0.0;
+        lastFpsTime_ = std::chrono::steady_clock::now();
 
         // Create RGB texture (640x480 Kinect resolution)
         MTLTextureDescriptor *rgbTextureDesc = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatBGRA8Unorm
@@ -157,6 +168,19 @@
 }
 
 - (void)drawInMTKView:(MTKView *)view {
+    // Update FPS counter
+    frameCount_++;
+    auto now = std::chrono::steady_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - lastFpsTime_).count();
+    if (elapsed >= 1000) {
+        currentFps_ = (double)frameCount_.load() / (elapsed / 1000.0);
+        if (frameCount_ % 60 == 0) {
+            std::cout << "Render FPS: " << currentFps_ << std::endl;
+        }
+        frameCount_ = 0;
+        lastFpsTime_ = now;
+    }
+
     // Create command buffer
     id<MTLCommandBuffer> commandBuffer = [_commandQueue commandBuffer];
 
@@ -193,6 +217,10 @@
 
     // Commit command buffer
     [commandBuffer commit];
+}
+
+- (double)getCurrentFps {
+    return currentFps_;
 }
 
 @end

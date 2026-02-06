@@ -1,0 +1,41 @@
+#!/bin/bash
+# M5 Performance Profiling
+# Run with Instruments for detailed profiling
+
+cd "$(dirname "$0")/build"
+
+echo "===================================="
+echo "M5 Performance Profiling"
+echo "===================================="
+echo ""
+echo "Manual Profiling Steps:"
+echo ""
+echo "1. FPS Measurement (Console):"
+echo "   sudo ./MetalKinectViewer"
+echo "   Monitor console for 'Render FPS' logs"
+echo "   Target: >= 25 FPS (ideally 30 FPS)"
+echo ""
+echo "2. CPU Profiling (Instruments - Time Profiler):"
+echo "   sudo xcrun xctrace record --template 'Time Profiler' --launch ./MetalKinectViewer --output metal_time.trace"
+echo "   Run for 30 seconds, then Ctrl-C"
+echo "   Open: open metal_time.trace"
+echo ""
+echo "3. GPU Profiling (Instruments - Metal System Trace):"
+echo "   sudo xcrun xctrace record --template 'Metal System Trace' --launch ./MetalKinectViewer --output metal_gpu.trace"
+echo "   Run for 30 seconds, then Ctrl-C"
+echo "   Open: open metal_gpu.trace"
+echo ""
+echo "4. Memory Profiling (Instruments - Allocations):"
+echo "   sudo xcrun xctrace record --template 'Allocations' --launch ./MetalKinectViewer --output metal_memory.trace"
+echo "   Run for 30 seconds, then Ctrl-C"
+echo "   Open: open metal_memory.trace"
+echo ""
+echo "5. Document findings in docs/planning/metal-integration.md"
+echo ""
+echo "Starting basic FPS test..."
+echo ""
+
+timeout 30s sudo ./MetalKinectViewer 2>&1 | grep -E "(FPS|frame|Kinect)"
+
+echo ""
+echo "Basic test complete. Run manual Instruments profiles for detailed analysis."

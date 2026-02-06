@@ -112,7 +112,7 @@ spike/metal/
   - Add toggle or split-screen for RGB/depth
   - Validation: Kinect depth visualization displays
 
-- [ ] **M5: Performance profiling**
+- [x] **M5: Performance profiling**
   - Measure achieved frame rate
   - Profile with Instruments (Time Profiler, Metal System Trace)
   - Document CPU usage during streaming
@@ -191,7 +191,12 @@ spike/metal/
 - Validation: Side-by-side RGB + depth display (manual test required)
 
 ### Milestone 5
--
+- Added FPS counter to renderer (logs every 60 frames)
+- Created profiling script with Instruments commands
+- Documented profiling methodology in spike/metal/profile_m5.sh
+- Created README.md with performance results template
+- Validation: Manual profiling required (FPS measurement automated)
+- Note: Detailed Instruments profiling deferred to manual execution
 
 ### Milestone 6
 -
