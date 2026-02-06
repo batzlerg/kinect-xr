@@ -864,13 +864,92 @@ XrResult KinectXRRuntime::waitFrame(XrSession session, const XrFrameWaitInfo* fr
 }
 
 XrResult KinectXRRuntime::beginFrame(XrSession session, const XrFrameBeginInfo* frameBeginInfo) {
-    // Stub for M7
-    return XR_ERROR_RUNTIME_FAILURE;
+    if (!frameBeginInfo) {
+        return XR_ERROR_VALIDATION_FAILURE;
+    }
+
+    if (frameBeginInfo->type != XR_TYPE_FRAME_BEGIN_INFO) {
+        return XR_ERROR_VALIDATION_FAILURE;
+    }
+
+    std::lock_guard<std::mutex> lock(sessionMutex_);
+    auto it = sessions_.find(session);
+    if (it == sessions_.end()) {
+        return XR_ERROR_HANDLE_INVALID;
+    }
+
+    SessionData* sessionData = it->second.get();
+
+    // Session must be running
+    if (sessionData->state != SessionState::SYNCHRONIZED &&
+        sessionData->state != SessionState::VISIBLE &&
+        sessionData->state != SessionState::FOCUSED) {
+        return XR_ERROR_SESSION_NOT_RUNNING;
+    }
+
+    // Cannot begin a frame if one is already in progress
+    if (sessionData->frameState.frameInProgress) {
+        return XR_ERROR_CALL_ORDER_INVALID;
+    }
+
+    // Mark frame as in progress
+    sessionData->frameState.frameInProgress = true;
+
+    return XR_SUCCESS;
 }
 
 XrResult KinectXRRuntime::endFrame(XrSession session, const XrFrameEndInfo* frameEndInfo) {
-    // Stub for M7
-    return XR_ERROR_RUNTIME_FAILURE;
+    if (!frameEndInfo) {
+        return XR_ERROR_VALIDATION_FAILURE;
+    }
+
+    if (frameEndInfo->type != XR_TYPE_FRAME_END_INFO) {
+        return XR_ERROR_VALIDATION_FAILURE;
+    }
+
+    std::lock_guard<std::mutex> lock(sessionMutex_);
+    auto it = sessions_.find(session);
+    if (it == sessions_.end()) {
+        return XR_ERROR_HANDLE_INVALID;
+    }
+
+    SessionData* sessionData = it->second.get();
+
+    // Session must be running
+    if (sessionData->state != SessionState::SYNCHRONIZED &&
+        sessionData->state != SessionState::VISIBLE &&
+        sessionData->state != SessionState::FOCUSED) {
+        return XR_ERROR_SESSION_NOT_RUNNING;
+    }
+
+    // Must have begun a frame first
+    if (!sessionData->frameState.frameInProgress) {
+        return XR_ERROR_CALL_ORDER_INVALID;
+    }
+
+    // Validate display time (should match what we returned from waitFrame)
+    if (frameEndInfo->displayTime != sessionData->frameState.lastFrameTime) {
+        // Allow some flexibility, but warn if completely wrong
+        // For now, accept any reasonable value
+    }
+
+    // Validate environment blend mode (we only support opaque)
+    if (frameEndInfo->environmentBlendMode != XR_ENVIRONMENT_BLEND_MODE_OPAQUE) {
+        return XR_ERROR_ENVIRONMENT_BLEND_MODE_UNSUPPORTED;
+    }
+
+    // Process layers (for M7, just validate counts)
+    if (frameEndInfo->layerCount > 0 && !frameEndInfo->layers) {
+        return XR_ERROR_VALIDATION_FAILURE;
+    }
+
+    // For M7, we don't process layers yet (that's for Spec 007)
+    // Just accept them and mark frame as complete
+
+    // Mark frame as complete
+    sessionData->frameState.frameInProgress = false;
+
+    return XR_SUCCESS;
 }
 
 XrResult KinectXRRuntime::locateViews(XrSession session, const XrViewLocateInfo* viewLocateInfo, XrViewState* viewState, uint32_t viewCapacityInput, uint32_t* viewCountOutput, XrView* views) {

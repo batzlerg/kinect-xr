@@ -136,3 +136,127 @@ TEST_F(FrameLoopTest, WaitFrame_NullParameters) {
     result = KinectXRRuntime::getInstance().waitFrame(session_, &waitInfo, nullptr);
     EXPECT_EQ(result, XR_ERROR_VALIDATION_FAILURE);
 }
+
+// M7 Tests: Frame State Machine (xrBeginFrame/xrEndFrame)
+
+TEST_F(FrameLoopTest, BeginFrame_Success) {
+    XrFrameBeginInfo beginInfo{XR_TYPE_FRAME_BEGIN_INFO};
+    XrResult result = KinectXRRuntime::getInstance().beginFrame(session_, &beginInfo);
+    EXPECT_EQ(result, XR_SUCCESS);
+
+    // End frame to clean up
+    XrFrameEndInfo endInfo{XR_TYPE_FRAME_END_INFO};
+    endInfo.displayTime = 1000;
+    endInfo.environmentBlendMode = XR_ENVIRONMENT_BLEND_MODE_OPAQUE;
+    endInfo.layerCount = 0;
+    endInfo.layers = nullptr;
+    KinectXRRuntime::getInstance().endFrame(session_, &endInfo);
+}
+
+TEST_F(FrameLoopTest, BeginFrame_DoubleBegin) {
+    XrFrameBeginInfo beginInfo{XR_TYPE_FRAME_BEGIN_INFO};
+    XrResult result = KinectXRRuntime::getInstance().beginFrame(session_, &beginInfo);
+    ASSERT_EQ(result, XR_SUCCESS);
+
+    // Try to begin again without ending - should fail
+    result = KinectXRRuntime::getInstance().beginFrame(session_, &beginInfo);
+    EXPECT_EQ(result, XR_ERROR_CALL_ORDER_INVALID);
+
+    // Clean up
+    XrFrameEndInfo endInfo{XR_TYPE_FRAME_END_INFO};
+    endInfo.displayTime = 1000;
+    endInfo.environmentBlendMode = XR_ENVIRONMENT_BLEND_MODE_OPAQUE;
+    endInfo.layerCount = 0;
+    endInfo.layers = nullptr;
+    KinectXRRuntime::getInstance().endFrame(session_, &endInfo);
+}
+
+TEST_F(FrameLoopTest, EndFrame_Success) {
+    // Begin frame first
+    XrFrameBeginInfo beginInfo{XR_TYPE_FRAME_BEGIN_INFO};
+    XrResult result = KinectXRRuntime::getInstance().beginFrame(session_, &beginInfo);
+    ASSERT_EQ(result, XR_SUCCESS);
+
+    // End frame
+    XrFrameEndInfo endInfo{XR_TYPE_FRAME_END_INFO};
+    endInfo.displayTime = 1000;
+    endInfo.environmentBlendMode = XR_ENVIRONMENT_BLEND_MODE_OPAQUE;
+    endInfo.layerCount = 0;
+    endInfo.layers = nullptr;
+    result = KinectXRRuntime::getInstance().endFrame(session_, &endInfo);
+    EXPECT_EQ(result, XR_SUCCESS);
+}
+
+TEST_F(FrameLoopTest, EndFrame_WithoutBegin) {
+    XrFrameEndInfo endInfo{XR_TYPE_FRAME_END_INFO};
+    endInfo.displayTime = 1000;
+    endInfo.environmentBlendMode = XR_ENVIRONMENT_BLEND_MODE_OPAQUE;
+    endInfo.layerCount = 0;
+    endInfo.layers = nullptr;
+
+    XrResult result = KinectXRRuntime::getInstance().endFrame(session_, &endInfo);
+    EXPECT_EQ(result, XR_ERROR_CALL_ORDER_INVALID);
+}
+
+TEST_F(FrameLoopTest, EndFrame_InvalidBlendMode) {
+    // Begin frame first
+    XrFrameBeginInfo beginInfo{XR_TYPE_FRAME_BEGIN_INFO};
+    XrResult result = KinectXRRuntime::getInstance().beginFrame(session_, &beginInfo);
+    ASSERT_EQ(result, XR_SUCCESS);
+
+    // End frame with unsupported blend mode
+    XrFrameEndInfo endInfo{XR_TYPE_FRAME_END_INFO};
+    endInfo.displayTime = 1000;
+    endInfo.environmentBlendMode = XR_ENVIRONMENT_BLEND_MODE_ADDITIVE;
+    endInfo.layerCount = 0;
+    endInfo.layers = nullptr;
+
+    result = KinectXRRuntime::getInstance().endFrame(session_, &endInfo);
+    EXPECT_EQ(result, XR_ERROR_ENVIRONMENT_BLEND_MODE_UNSUPPORTED);
+
+    // Clean up with correct blend mode
+    endInfo.environmentBlendMode = XR_ENVIRONMENT_BLEND_MODE_OPAQUE;
+    KinectXRRuntime::getInstance().endFrame(session_, &endInfo);
+}
+
+TEST_F(FrameLoopTest, FullFrameLoop) {
+    // Simulate typical frame loop: wait → begin → end
+    XrFrameWaitInfo waitInfo{XR_TYPE_FRAME_WAIT_INFO};
+    XrFrameState frameState{XR_TYPE_FRAME_STATE};
+    XrResult result = KinectXRRuntime::getInstance().waitFrame(session_, &waitInfo, &frameState);
+    ASSERT_EQ(result, XR_SUCCESS);
+
+    XrFrameBeginInfo beginInfo{XR_TYPE_FRAME_BEGIN_INFO};
+    result = KinectXRRuntime::getInstance().beginFrame(session_, &beginInfo);
+    ASSERT_EQ(result, XR_SUCCESS);
+
+    XrFrameEndInfo endInfo{XR_TYPE_FRAME_END_INFO};
+    endInfo.displayTime = frameState.predictedDisplayTime;
+    endInfo.environmentBlendMode = XR_ENVIRONMENT_BLEND_MODE_OPAQUE;
+    endInfo.layerCount = 0;
+    endInfo.layers = nullptr;
+    result = KinectXRRuntime::getInstance().endFrame(session_, &endInfo);
+    EXPECT_EQ(result, XR_SUCCESS);
+}
+
+TEST_F(FrameLoopTest, MultipleFrameLoops) {
+    // Render 3 frames to verify state machine works repeatedly
+    for (int i = 0; i < 3; ++i) {
+        XrFrameWaitInfo waitInfo{XR_TYPE_FRAME_WAIT_INFO};
+        XrFrameState frameState{XR_TYPE_FRAME_STATE};
+        XrResult result = KinectXRRuntime::getInstance().waitFrame(session_, &waitInfo, &frameState);
+        ASSERT_EQ(result, XR_SUCCESS);
+
+        XrFrameBeginInfo beginInfo{XR_TYPE_FRAME_BEGIN_INFO};
+        result = KinectXRRuntime::getInstance().beginFrame(session_, &beginInfo);
+        ASSERT_EQ(result, XR_SUCCESS);
+
+        XrFrameEndInfo endInfo{XR_TYPE_FRAME_END_INFO};
+        endInfo.displayTime = frameState.predictedDisplayTime;
+        endInfo.environmentBlendMode = XR_ENVIRONMENT_BLEND_MODE_OPAQUE;
+        endInfo.layerCount = 0;
+        endInfo.layers = nullptr;
+        result = KinectXRRuntime::getInstance().endFrame(session_, &endInfo);
+        ASSERT_EQ(result, XR_SUCCESS) << "Frame " << i << " failed";
+    }
+}
