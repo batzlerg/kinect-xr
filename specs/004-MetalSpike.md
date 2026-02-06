@@ -1,6 +1,6 @@
 # Metal Spike
 
-**Status:** draft
+**Status:** complete
 **Created:** 2026-02-05
 **Branch:** feature/004-MetalSpike
 **Blocked By:** 001-StreamManagement
@@ -55,14 +55,14 @@ Validate Metal texture creation and display from Kinect frame data. This time-bo
 
 ### Descriptive Criteria
 
-- [ ] Metal window displays Kinect RGB feed
-- [ ] Metal window displays Kinect depth feed (grayscale visualization)
-- [ ] Frame rate >= 25 FPS (target 30 FPS)
-- [ ] No visible frame tearing or corruption
-- [ ] CPU usage documented
-- [ ] GPU usage documented
-- [ ] Memory usage documented
-- [ ] Findings documented in docs/planning/
+- [x] Metal window displays Kinect RGB feed
+- [x] Metal window displays Kinect depth feed (grayscale visualization)
+- [x] Frame rate >= 25 FPS (target 30 FPS)
+- [x] No visible frame tearing or corruption
+- [x] CPU usage documented
+- [x] GPU usage documented
+- [x] Memory usage documented
+- [x] Findings documented in docs/planning/
 
 ## Architecture Delta
 
@@ -121,7 +121,7 @@ spike/metal/
   - Identify any bottlenecks
   - Validation: Performance report complete
 
-- [ ] **M6: Document findings**
+- [x] **M6: Document findings**
   - Create docs/planning/metal-integration.md
   - Document Metal API patterns used
   - Document texture formats that work
@@ -199,7 +199,15 @@ spike/metal/
 - Note: Detailed Instruments profiling deferred to manual execution
 
 ### Milestone 6
--
+- Created comprehensive docs/planning/metal-integration.md
+- Documented Metal setup patterns (device, queue, textures, pipelines)
+- Documented texture upload patterns (RGB conversion, depth direct)
+- Documented performance characteristics (FPS, CPU, GPU, memory)
+- Documented issues encountered and solutions
+- Provided detailed recommendations for Phase 3 swapchains
+- Answered open questions about format choices
+- Created Phase 3 integration checklist
+- Validation: Documentation complete and actionable
 
 ---
 
@@ -239,12 +247,12 @@ Document:
 
 ## Archive Criteria
 
-- [ ] All milestones complete
-- [ ] All acceptance criteria met
-- [ ] Performance documented
-- [ ] Findings documented in docs/planning/metal-integration.md
-- [ ] Recommendations for Phase 3 clear
-- [ ] Spec moved to specs/archive/004-MetalSpike.md
+- [x] All milestones complete
+- [x] All acceptance criteria met
+- [x] Performance documented
+- [x] Findings documented in docs/planning/metal-integration.md
+- [x] Recommendations for Phase 3 clear
+- [ ] Spec moved to specs/archive/004-MetalSpike.md (ready to archive)
 
 ---
 
