@@ -953,8 +953,83 @@ XrResult KinectXRRuntime::endFrame(XrSession session, const XrFrameEndInfo* fram
 }
 
 XrResult KinectXRRuntime::locateViews(XrSession session, const XrViewLocateInfo* viewLocateInfo, XrViewState* viewState, uint32_t viewCapacityInput, uint32_t* viewCountOutput, XrView* views) {
-    // Stub for M8
-    return XR_ERROR_RUNTIME_FAILURE;
+    if (!viewLocateInfo || !viewState || !viewCountOutput) {
+        return XR_ERROR_VALIDATION_FAILURE;
+    }
+
+    if (viewLocateInfo->type != XR_TYPE_VIEW_LOCATE_INFO) {
+        return XR_ERROR_VALIDATION_FAILURE;
+    }
+
+    if (viewState->type != XR_TYPE_VIEW_STATE) {
+        return XR_ERROR_VALIDATION_FAILURE;
+    }
+
+    std::lock_guard<std::mutex> lock(sessionMutex_);
+    auto it = sessions_.find(session);
+    if (it == sessions_.end()) {
+        return XR_ERROR_HANDLE_INVALID;
+    }
+
+    SessionData* sessionData = it->second.get();
+
+    // Validate view configuration type (must match session)
+    if (viewLocateInfo->viewConfigurationType != sessionData->viewConfigurationType) {
+        return XR_ERROR_VIEW_CONFIGURATION_TYPE_UNSUPPORTED;
+    }
+
+    // Validate space handle
+    if (!isValidSpace(viewLocateInfo->space)) {
+        return XR_ERROR_HANDLE_INVALID;
+    }
+
+    // Kinect is a stationary sensor - always return identity pose
+    // For PRIMARY_MONO, we have 1 view
+    const uint32_t viewCount = 1;
+
+    // Two-call idiom
+    if (viewCapacityInput == 0) {
+        *viewCountOutput = viewCount;
+        return XR_SUCCESS;
+    }
+
+    if (viewCapacityInput < viewCount) {
+        *viewCountOutput = viewCount;
+        return XR_ERROR_SIZE_INSUFFICIENT;
+    }
+
+    if (!views) {
+        return XR_ERROR_VALIDATION_FAILURE;
+    }
+
+    // Fill in view state (pose is always valid and tracked for Kinect)
+    viewState->viewStateFlags = XR_VIEW_STATE_POSITION_VALID_BIT |
+                                  XR_VIEW_STATE_ORIENTATION_VALID_BIT |
+                                  XR_VIEW_STATE_POSITION_TRACKED_BIT |
+                                  XR_VIEW_STATE_ORIENTATION_TRACKED_BIT;
+
+    // Fill in view (identity pose, standard FOV)
+    views[0].type = XR_TYPE_VIEW;
+    views[0].next = nullptr;
+
+    // Identity pose (Kinect at origin, looking down -Z axis in OpenXR convention)
+    views[0].pose.position = {0.0f, 0.0f, 0.0f};
+    views[0].pose.orientation = {0.0f, 0.0f, 0.0f, 1.0f};  // Identity quaternion
+
+    // Field of view (Kinect 1 horizontal: 57°, vertical: 43°)
+    // Convert to radians and split symmetrically
+    const float hFovDeg = 57.0f;
+    const float vFovDeg = 43.0f;
+    const float hFovRad = hFovDeg * 3.14159f / 180.0f;
+    const float vFovRad = vFovDeg * 3.14159f / 180.0f;
+
+    views[0].fov.angleLeft = -hFovRad / 2.0f;
+    views[0].fov.angleRight = hFovRad / 2.0f;
+    views[0].fov.angleUp = vFovRad / 2.0f;
+    views[0].fov.angleDown = -vFovRad / 2.0f;
+
+    *viewCountOutput = viewCount;
+    return XR_SUCCESS;
 }
 
 } // namespace kinect_xr

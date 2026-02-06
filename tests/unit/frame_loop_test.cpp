@@ -260,3 +260,125 @@ TEST_F(FrameLoopTest, MultipleFrameLoops) {
         ASSERT_EQ(result, XR_SUCCESS) << "Frame " << i << " failed";
     }
 }
+
+// M8 Tests: View Pose Queries (xrLocateViews)
+
+TEST_F(FrameLoopTest, LocateViews_CountQuery) {
+    // Create a reference space first
+    XrReferenceSpaceCreateInfo spaceInfo{XR_TYPE_REFERENCE_SPACE_CREATE_INFO};
+    spaceInfo.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_LOCAL;
+    spaceInfo.poseInReferenceSpace.position = {0.0f, 0.0f, 0.0f};
+    spaceInfo.poseInReferenceSpace.orientation = {0.0f, 0.0f, 0.0f, 1.0f};
+
+    XrSpace space = XR_NULL_HANDLE;
+    XrResult result = KinectXRRuntime::getInstance().createReferenceSpace(session_, &spaceInfo, &space);
+    ASSERT_EQ(result, XR_SUCCESS);
+
+    // Query view count
+    XrViewLocateInfo locateInfo{XR_TYPE_VIEW_LOCATE_INFO};
+    locateInfo.viewConfigurationType = XR_VIEW_CONFIGURATION_TYPE_PRIMARY_MONO;
+    locateInfo.displayTime = 1000;
+    locateInfo.space = space;
+
+    XrViewState viewState{XR_TYPE_VIEW_STATE};
+    uint32_t viewCount = 0;
+
+    result = KinectXRRuntime::getInstance().locateViews(session_, &locateInfo, &viewState, 0, &viewCount, nullptr);
+    EXPECT_EQ(result, XR_SUCCESS);
+    EXPECT_EQ(viewCount, 1u);  // PRIMARY_MONO has 1 view
+
+    // Cleanup
+    KinectXRRuntime::getInstance().destroySpace(space);
+}
+
+TEST_F(FrameLoopTest, LocateViews_GetViews) {
+    // Create a reference space
+    XrReferenceSpaceCreateInfo spaceInfo{XR_TYPE_REFERENCE_SPACE_CREATE_INFO};
+    spaceInfo.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_LOCAL;
+    spaceInfo.poseInReferenceSpace.position = {0.0f, 0.0f, 0.0f};
+    spaceInfo.poseInReferenceSpace.orientation = {0.0f, 0.0f, 0.0f, 1.0f};
+
+    XrSpace space = XR_NULL_HANDLE;
+    XrResult result = KinectXRRuntime::getInstance().createReferenceSpace(session_, &spaceInfo, &space);
+    ASSERT_EQ(result, XR_SUCCESS);
+
+    // Get views
+    XrViewLocateInfo locateInfo{XR_TYPE_VIEW_LOCATE_INFO};
+    locateInfo.viewConfigurationType = XR_VIEW_CONFIGURATION_TYPE_PRIMARY_MONO;
+    locateInfo.displayTime = 1000;
+    locateInfo.space = space;
+
+    XrViewState viewState{XR_TYPE_VIEW_STATE};
+    XrView view{XR_TYPE_VIEW};
+    uint32_t viewCount = 1;
+
+    result = KinectXRRuntime::getInstance().locateViews(session_, &locateInfo, &viewState, 1, &viewCount, &view);
+    EXPECT_EQ(result, XR_SUCCESS);
+    EXPECT_EQ(viewCount, 1u);
+
+    // Verify view state flags (pose is valid and tracked)
+    EXPECT_TRUE(viewState.viewStateFlags & XR_VIEW_STATE_POSITION_VALID_BIT);
+    EXPECT_TRUE(viewState.viewStateFlags & XR_VIEW_STATE_ORIENTATION_VALID_BIT);
+    EXPECT_TRUE(viewState.viewStateFlags & XR_VIEW_STATE_POSITION_TRACKED_BIT);
+    EXPECT_TRUE(viewState.viewStateFlags & XR_VIEW_STATE_ORIENTATION_TRACKED_BIT);
+
+    // Verify identity pose
+    EXPECT_FLOAT_EQ(view.pose.position.x, 0.0f);
+    EXPECT_FLOAT_EQ(view.pose.position.y, 0.0f);
+    EXPECT_FLOAT_EQ(view.pose.position.z, 0.0f);
+    EXPECT_FLOAT_EQ(view.pose.orientation.x, 0.0f);
+    EXPECT_FLOAT_EQ(view.pose.orientation.y, 0.0f);
+    EXPECT_FLOAT_EQ(view.pose.orientation.z, 0.0f);
+    EXPECT_FLOAT_EQ(view.pose.orientation.w, 1.0f);
+
+    // Verify FOV is reasonable (Kinect 1: 57° horizontal, 43° vertical)
+    EXPECT_LT(view.fov.angleLeft, 0.0f);
+    EXPECT_GT(view.fov.angleRight, 0.0f);
+    EXPECT_GT(view.fov.angleUp, 0.0f);
+    EXPECT_LT(view.fov.angleDown, 0.0f);
+
+    // Cleanup
+    KinectXRRuntime::getInstance().destroySpace(space);
+}
+
+TEST_F(FrameLoopTest, LocateViews_InvalidSpace) {
+    XrSpace fakeSpace = reinterpret_cast<XrSpace>(0x99999);
+
+    XrViewLocateInfo locateInfo{XR_TYPE_VIEW_LOCATE_INFO};
+    locateInfo.viewConfigurationType = XR_VIEW_CONFIGURATION_TYPE_PRIMARY_MONO;
+    locateInfo.displayTime = 1000;
+    locateInfo.space = fakeSpace;
+
+    XrViewState viewState{XR_TYPE_VIEW_STATE};
+    uint32_t viewCount = 0;
+
+    XrResult result = KinectXRRuntime::getInstance().locateViews(session_, &locateInfo, &viewState, 0, &viewCount, nullptr);
+    EXPECT_EQ(result, XR_ERROR_HANDLE_INVALID);
+}
+
+TEST_F(FrameLoopTest, LocateViews_InvalidViewConfigType) {
+    // Create a reference space
+    XrReferenceSpaceCreateInfo spaceInfo{XR_TYPE_REFERENCE_SPACE_CREATE_INFO};
+    spaceInfo.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_LOCAL;
+    spaceInfo.poseInReferenceSpace.position = {0.0f, 0.0f, 0.0f};
+    spaceInfo.poseInReferenceSpace.orientation = {0.0f, 0.0f, 0.0f, 1.0f};
+
+    XrSpace space = XR_NULL_HANDLE;
+    XrResult result = KinectXRRuntime::getInstance().createReferenceSpace(session_, &spaceInfo, &space);
+    ASSERT_EQ(result, XR_SUCCESS);
+
+    // Try with wrong view configuration type
+    XrViewLocateInfo locateInfo{XR_TYPE_VIEW_LOCATE_INFO};
+    locateInfo.viewConfigurationType = XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO;  // Wrong type
+    locateInfo.displayTime = 1000;
+    locateInfo.space = space;
+
+    XrViewState viewState{XR_TYPE_VIEW_STATE};
+    uint32_t viewCount = 0;
+
+    result = KinectXRRuntime::getInstance().locateViews(session_, &locateInfo, &viewState, 0, &viewCount, nullptr);
+    EXPECT_EQ(result, XR_ERROR_VIEW_CONFIGURATION_TYPE_UNSUPPORTED);
+
+    // Cleanup
+    KinectXRRuntime::getInstance().destroySpace(space);
+}
