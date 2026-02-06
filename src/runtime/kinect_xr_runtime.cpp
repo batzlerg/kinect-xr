@@ -1,5 +1,6 @@
 #include "kinect_xr/runtime.h"
 #include "kinect_xr/metal_helper.h"
+#include "kinect_xr/device.h"
 #include <openxr/openxr_platform.h>
 #include <cstring>
 #include <chrono>
@@ -335,6 +336,46 @@ XrResult KinectXRRuntime::beginSession(XrSession session, const XrSessionBeginIn
     // Update state and queue events
     sessionData->viewConfigurationType = beginInfo->primaryViewConfigurationType;
 
+    // Initialize Kinect device
+    sessionData->kinectDevice = std::make_unique<KinectDevice>();
+    DeviceConfig config;
+    config.enableRGB = true;
+    config.enableDepth = true;
+    config.enableMotor = false;  // Don't need motor for depth sensing
+
+    DeviceError deviceError = sessionData->kinectDevice->initialize(config);
+    if (deviceError != DeviceError::None) {
+        // No Kinect hardware available
+        sessionData->kinectDevice.reset();
+        return XR_ERROR_FORM_FACTOR_UNAVAILABLE;
+    }
+
+    // Register callbacks to populate frame cache
+    sessionData->kinectDevice->setDepthCallback([sessionData](const void* depth, uint32_t timestamp) {
+        std::lock_guard<std::mutex> lock(sessionData->frameCache.mutex);
+        // Copy depth data (640x480 uint16_t)
+        const uint16_t* depthData = static_cast<const uint16_t*>(depth);
+        std::copy(depthData, depthData + (640 * 480), sessionData->frameCache.depthData.begin());
+        sessionData->frameCache.depthTimestamp = timestamp;
+        sessionData->frameCache.depthValid = true;
+    });
+
+    sessionData->kinectDevice->setVideoCallback([sessionData](const void* rgb, uint32_t timestamp) {
+        std::lock_guard<std::mutex> lock(sessionData->frameCache.mutex);
+        // Copy RGB data (640x480x3 uint8_t)
+        const uint8_t* rgbData = static_cast<const uint8_t*>(rgb);
+        std::copy(rgbData, rgbData + (640 * 480 * 3), sessionData->frameCache.rgbData.begin());
+        sessionData->frameCache.rgbTimestamp = timestamp;
+        sessionData->frameCache.rgbValid = true;
+    });
+
+    // Start streaming
+    deviceError = sessionData->kinectDevice->startStreams();
+    if (deviceError != DeviceError::None) {
+        sessionData->kinectDevice.reset();
+        return XR_ERROR_RUNTIME_FAILURE;
+    }
+
     // Transition: READY → SYNCHRONIZED → VISIBLE → FOCUSED
     sessionData->state = SessionState::SYNCHRONIZED;
     {
@@ -364,6 +405,12 @@ XrResult KinectXRRuntime::endSession(XrSession session) {
     // Session must not be IDLE or STOPPING to end
     if (sessionData->state == SessionState::IDLE || sessionData->state == SessionState::STOPPING) {
         return XR_ERROR_SESSION_NOT_RUNNING;
+    }
+
+    // Stop Kinect streams if device is active
+    if (sessionData->kinectDevice) {
+        sessionData->kinectDevice->stopStreams();
+        sessionData->kinectDevice.reset();
     }
 
     // Transition to STOPPING then IDLE

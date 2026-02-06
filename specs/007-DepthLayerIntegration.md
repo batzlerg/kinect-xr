@@ -110,7 +110,7 @@ Implement XR_KHR_composition_layer_depth extension and integrate live Kinect RGB
   - Cache RGB + depth frame buffers
   - Unit tests for cache operations
 
-- [ ] **M3: KinectDevice Integration** (integration tests)
+- [x] **M3: KinectDevice Integration** (integration tests)
   - Store KinectDevice in SessionData
   - Initialize/start streams on session begin
   - Stop streams on session end
@@ -191,7 +191,15 @@ Implement XR_KHR_composition_layer_depth extension and integrate live Kinect RGB
 - All tests passing (103 total unit tests)
 
 ### Milestone 3
-- (To be filled during implementation)
+- Added KinectDevice to SessionData (unique_ptr for automatic cleanup)
+- Included device.h in runtime.h (needed for unique_ptr destructor)
+- xrBeginSession now initializes Kinect and starts streams
+- Registered depth and video callbacks to populate FrameCache
+- xrEndSession stops streams and releases Kinect
+- Returns XR_ERROR_FORM_FACTOR_UNAVAILABLE if no Kinect found
+- 5 new integration tests (begin/end session, callback validation, depth range)
+- All 13 integration tests passing (1 skipped due to USB packet loss)
+- Note: Kinect 1 RGB stream can be unreliable (libfreenect USB issues)
 
 ### Milestone 4
 - (To be filled during implementation)

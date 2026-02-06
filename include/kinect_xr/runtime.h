@@ -6,6 +6,7 @@
 #include <mutex>
 #include <unordered_map>
 #include <queue>
+#include "kinect_xr/device.h"
 
 namespace kinect_xr {
 
@@ -128,6 +129,9 @@ struct SessionData {
 
     // Kinect frame cache (latest RGB + depth from callbacks)
     FrameCache frameCache;
+
+    // Kinect device (owned by session, initialized on xrBeginSession)
+    std::unique_ptr<KinectDevice> kinectDevice;
 
     SessionData(XrSession h, XrInstance inst, XrSystemId sysId)
         : handle(h)
