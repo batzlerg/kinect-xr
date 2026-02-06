@@ -261,4 +261,11 @@ private:
     uint64_t nextSwapchainId_ = 1;
 };
 
+// Texture upload helpers (defined in texture_upload.cpp)
+void convertRGB888toBGRA8888(const uint8_t* rgb, uint8_t* bgra, uint32_t width, uint32_t height);
+bool uploadRGBTexture(SessionData* sessionData, SwapchainData* swapchainData);
+bool uploadDepthTexture(SessionData* sessionData, SwapchainData* swapchainData);
+void uploadSessionTextures(SessionData* sessionData,
+                           const std::unordered_map<XrSwapchain, std::unique_ptr<SwapchainData>>& swapchains);
+
 } // namespace kinect_xr

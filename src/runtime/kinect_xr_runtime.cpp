@@ -837,6 +837,20 @@ XrResult KinectXRRuntime::waitSwapchainImage(XrSwapchain swapchain, const XrSwap
         return XR_ERROR_CALL_ORDER_INVALID;
     }
 
+    // Upload Kinect frame data to texture before application renders
+    // Get session data to access frame cache
+    SessionData* sessionData = getSessionData(data->session);
+    if (sessionData) {
+        // Upload RGB or depth based on swapchain format
+        if (data->format == 80) {
+            // Color swapchain - upload RGB
+            uploadRGBTexture(sessionData, data);
+        } else if (data->format == 13) {
+            // Depth swapchain - upload depth
+            uploadDepthTexture(sessionData, data);
+        }
+    }
+
     // For Kinect XR, images are always immediately ready (no GPU work to wait for)
     // In a real implementation, this would block until the GPU finishes rendering
     // The timeout parameter is ignored since we return immediately

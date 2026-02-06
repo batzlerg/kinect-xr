@@ -28,5 +28,16 @@ void releaseTexture(void* texturePtr);
  */
 void* getMetalDevice(void* commandQueuePtr);
 
+/**
+ * Upload data to Metal texture
+ * @param texturePtr Pointer to MTLTexture (as void*)
+ * @param data Pointer to pixel data
+ * @param bytesPerRow Bytes per row in source data
+ * @param width Texture width
+ * @param height Texture height
+ * @return true if upload succeeded, false otherwise
+ */
+bool uploadTextureData(void* texturePtr, const void* data, uint32_t bytesPerRow, uint32_t width, uint32_t height);
+
 } // namespace metal
 } // namespace kinect_xr

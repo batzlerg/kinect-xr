@@ -48,6 +48,7 @@ add_library(kinect_xr_runtime_lib SHARED
   src/runtime/kinect_xr_runtime.cpp
   src/runtime/entry_points.cpp
   src/runtime/metal_helper.mm
+  src/runtime/texture_upload.cpp
 )
 
 target_include_directories(kinect_xr_runtime_lib

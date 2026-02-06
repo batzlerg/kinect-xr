@@ -117,13 +117,13 @@ Implement XR_KHR_composition_layer_depth extension and integrate live Kinect RGB
   - Register depth + video callbacks
   - Integration test validates callbacks fire
 
-- [ ] **M4: RGB Texture Upload** (integration tests)
+- [x] **M4: RGB Texture Upload** (integration tests)
   - RGB888→BGRA conversion function
   - Upload BGRA to color swapchain in xrWaitFrame
   - Integration test validates upload
   - Visual inspection of RGB feed
 
-- [ ] **M5: Depth Texture Upload** (integration tests)
+- [x] **M5: Depth Texture Upload** (integration tests)
   - Upload 11-bit depth to R16Uint texture
   - Handle depth swapchain in xrWaitFrame
   - Integration test validates depth upload
@@ -201,11 +201,16 @@ Implement XR_KHR_composition_layer_depth extension and integrate live Kinect RGB
 - All 13 integration tests passing (1 skipped due to USB packet loss)
 - Note: Kinect 1 RGB stream can be unreliable (libfreenect USB issues)
 
-### Milestone 4
-- (To be filled during implementation)
-
-### Milestone 5
-- (To be filled during implementation)
+### Milestone 4 & 5 (Combined Implementation)
+- Created texture_upload.cpp with RGB/depth upload functions
+- Implemented convertRGB888toBGRA8888 (CPU-side conversion)
+- Implemented uploadRGBTexture (frame cache → BGRA texture)
+- Implemented uploadDepthTexture (frame cache → R16Uint texture)
+- Added metal::uploadTextureData (MTLTexture.replaceRegion wrapper)
+- Upload happens in xrWaitSwapchainImage (after acquire, before render)
+- Thread-safe: Copy frame data from cache with mutex, then upload
+- 14 new unit tests (conversion correctness, upload validation, edge cases)
+- All 117 unit tests passing (103 → 117, +14 new)
 
 ### Milestone 6
 - (To be filled during implementation)

@@ -7,6 +7,7 @@ add_executable(unit_tests
   swapchain_test.cpp
   frame_loop_test.cpp
   frame_cache_test.cpp
+  texture_upload_test.cpp
 )
 
 target_link_libraries(unit_tests
