@@ -196,11 +196,11 @@ Update Phase 3 success criteria checkboxes.
 
 ## Archive Criteria
 
-- [ ] All milestones complete (M1-M9)
-- [ ] All acceptance criteria met
-- [ ] Unit tests passing (15+ tests)
-- [ ] Integration tests passing (Metal + hardware)
-- [ ] hello_xr validation documented
-- [ ] No memory leaks (verified with sanitizers)
-- [ ] Documentation updated
+- [x] All milestones complete (M1-M9)
+- [x] All acceptance criteria met
+- [x] Unit tests passing (89 tests!)
+- [x] Integration tests passing (Metal + hardware)
+- [x] hello_xr validation documented
+- [x] No memory leaks (verified with sanitizers)
+- [x] Documentation updated
 - [ ] Spec moved to specs/archive/006-SwapchainFrameLoop.md
