@@ -96,6 +96,50 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(OpenXR)
 
+# IXWebSocket for WebSocket bridge
+FetchContent_Declare(
+  ixwebsocket
+  GIT_REPOSITORY https://github.com/machinezone/IXWebSocket.git
+  GIT_TAG v11.4.5
+)
+set(USE_TLS OFF CACHE BOOL "" FORCE)  # No TLS needed for localhost
+FetchContent_MakeAvailable(ixwebsocket)
+
+# nlohmann/json for JSON handling
+FetchContent_Declare(
+  json
+  GIT_REPOSITORY https://github.com/nlohmann/json.git
+  GIT_TAG v3.11.3
+)
+FetchContent_MakeAvailable(json)
+
+# WebSocket Bridge Server Library
+add_library(kinect_bridge
+  src/bridge/bridge_server.cpp
+)
+
+target_include_directories(kinect_bridge
+  PUBLIC
+  ${CMAKE_SOURCE_DIR}/include
+)
+
+target_link_libraries(kinect_bridge
+  PUBLIC
+  kinect_xr_device
+  ixwebsocket
+  nlohmann_json::nlohmann_json
+)
+
+# Bridge Server Executable
+add_executable(kinect-bridge
+  src/bridge/main.cpp
+)
+
+target_link_libraries(kinect-bridge
+  PRIVATE
+  kinect_bridge
+)
+
 add_subdirectory(tests)
 add_subdirectory(tests/spike)
 
