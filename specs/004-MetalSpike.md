@@ -85,7 +85,7 @@ spike/metal/
 
 ## Milestones
 
-- [ ] **M1: Create minimal Metal window**
+- [x] **M1: Create minimal Metal window**
   - Create spike/metal/ directory
   - Create basic Cocoa application with Metal view
   - Render solid color to verify Metal pipeline works
@@ -157,7 +157,12 @@ spike/metal/
 ## Implementation Log
 
 ### Milestone 1
--
+- Created spike/metal directory structure
+- Implemented minimal Cocoa app with Metal view in Objective-C++
+- Created basic shaders (fullscreen triangle, solid green color)
+- CMake build configuration with Metal shader compilation
+- **Decision Q1:** Using Objective-C++ for C++ interop
+- Validation: Window displays green, no crashes
 
 ### Milestone 2
 -
