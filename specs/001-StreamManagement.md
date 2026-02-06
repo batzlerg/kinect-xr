@@ -1,6 +1,6 @@
 # StreamManagement
 
-**Status:** draft
+**Status:** active
 **Created:** 2026-02-05
 **Branch:** feature/001-StreamManagement
 
