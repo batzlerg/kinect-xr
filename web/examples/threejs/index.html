@@ -223,11 +223,25 @@
       const positions = positionAttr.array;
       const colors = colorAttr.array;
 
-      let pointIdx = 0;
       let minDepth = Infinity;
       let maxDepth = 0;
 
-      // Sample depth data and convert to 3D points
+      // PASS 1: Find actual depth range in scene
+      for (let y = 0; y < KINECT.HEIGHT; y += SAMPLE_STEP) {
+        for (let x = 0; x < KINECT.WIDTH; x += SAMPLE_STEP) {
+          const depthIdx = y * KINECT.WIDTH + x;
+          const depth = depthData[depthIdx];
+          if (depth >= KINECT.MIN_DEPTH_MM && depth <= KINECT.MAX_DEPTH_MM) {
+            minDepth = Math.min(minDepth, depth);
+            maxDepth = Math.max(maxDepth, depth);
+          }
+        }
+      }
+
+      // PASS 2: Build point cloud with colors mapped to actual range
+      let pointIdx = 0;
+      const depthRange = maxDepth - minDepth;
+
       for (let y = 0; y < KINECT.HEIGHT; y += SAMPLE_STEP) {
         for (let x = 0; x < KINECT.WIDTH; x += SAMPLE_STEP) {
           const depthIdx = y * KINECT.WIDTH + x;
@@ -247,20 +261,17 @@
             positions[pointIdx * 3 + 1] = py;
             positions[pointIdx * 3 + 2] = pz;
 
-            // Color mapping: close = warm (red/orange), far = cool (cyan/blue)
-            const normalizedDepth = (depth - KINECT.MIN_DEPTH_MM) / (KINECT.MAX_DEPTH_MM - KINECT.MIN_DEPTH_MM);
+            // Color mapping: Use ACTUAL scene depth range, not theoretical max
+            const normalizedDepth = depthRange > 0 ? (depth - minDepth) / depthRange : 0;
 
             // HSL-like color gradient (hue from 0 to 240 degrees)
+            // Now spans FULL color range regardless of actual depth distances
             const hue = normalizedDepth * 240;
             const color = hslToRgb(hue, 80, 60);
 
             colors[pointIdx * 3 + 0] = color.r;
             colors[pointIdx * 3 + 1] = color.g;
             colors[pointIdx * 3 + 2] = color.b;
-
-            // Track depth range for stats
-            minDepth = Math.min(minDepth, depth);
-            maxDepth = Math.max(maxDepth, depth);
 
             pointIdx++;
           }
