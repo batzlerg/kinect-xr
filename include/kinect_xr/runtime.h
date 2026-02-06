@@ -1,6 +1,7 @@
 #pragma once
 
 #include <openxr/openxr.h>
+#include <openxr/openxr_platform.h>
 #include <memory>
 #include <mutex>
 #include <unordered_map>
@@ -131,6 +132,9 @@ public:
 
     // Space validation
     bool isValidSpace(XrSpace space) const;
+
+    // Graphics requirements
+    XrResult getMetalGraphicsRequirements(XrInstance instance, XrSystemId systemId, XrGraphicsRequirementsMetalKHR* graphicsRequirements);
 
     // Delete copy and move constructors/operators
     KinectXRRuntime(const KinectXRRuntime&) = delete;

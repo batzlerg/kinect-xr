@@ -134,7 +134,7 @@ Runtime supports full session lifecycle. Applications can create sessions with M
   - Implement xrDestroySpace
   - Validation: All space types work
 
-- [ ] **M6: Graphics requirements**
+- [x] **M6: Graphics requirements**
   - Implement xrGetMetalGraphicsRequirementsKHR
   - Add to xrGetInstanceProcAddr
   - Validation: Returns valid requirements
@@ -243,3 +243,11 @@ Update Phase 2 success criteria checkboxes.
 - Added space tracking with sequential handle generation
 - 7 unit tests for space enumeration, creation, and destruction
 - All tests passing - reference space management working correctly
+
+### Milestone 6
+- Implemented xrGetMetalGraphicsRequirementsKHR
+- Returns nullptr for metalDevice (any Metal device acceptable)
+- Validates instance and system before returning requirements
+- Added to xrGetInstanceProcAddr dispatch table
+- 1 unit test using function pointer retrieval pattern
+- All tests passing - graphics requirements API working correctly

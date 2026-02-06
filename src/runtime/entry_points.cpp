@@ -92,6 +92,11 @@ XRAPI_ATTR XrResult XRAPI_CALL xrCreateReferenceSpace(
 XRAPI_ATTR XrResult XRAPI_CALL xrDestroySpace(
     XrSpace space);
 
+XRAPI_ATTR XrResult XRAPI_CALL xrGetMetalGraphicsRequirementsKHR(
+    XrInstance instance,
+    XrSystemId systemId,
+    XrGraphicsRequirementsMetalKHR* graphicsRequirements);
+
 // Main entry point for the runtime
 XRAPI_ATTR XrResult XRAPI_CALL xrGetInstanceProcAddr(
     XrInstance instance,
@@ -191,6 +196,10 @@ XRAPI_ATTR XrResult XRAPI_CALL xrGetInstanceProcAddr(
     }
     if (strcmp(name, "xrDestroySpace") == 0) {
         *function = reinterpret_cast<PFN_xrVoidFunction>(xrDestroySpace);
+        return XR_SUCCESS;
+    }
+    if (strcmp(name, "xrGetMetalGraphicsRequirementsKHR") == 0) {
+        *function = reinterpret_cast<PFN_xrVoidFunction>(xrGetMetalGraphicsRequirementsKHR);
         return XR_SUCCESS;
     }
 
@@ -567,6 +576,16 @@ XRAPI_ATTR XrResult XRAPI_CALL xrDestroySpace(
     XrSpace space) {
 
     return kinect_xr::KinectXRRuntime::getInstance().destroySpace(space);
+}
+
+// Graphics requirements functions
+
+XRAPI_ATTR XrResult XRAPI_CALL xrGetMetalGraphicsRequirementsKHR(
+    XrInstance instance,
+    XrSystemId systemId,
+    XrGraphicsRequirementsMetalKHR* graphicsRequirements) {
+
+    return kinect_xr::KinectXRRuntime::getInstance().getMetalGraphicsRequirements(instance, systemId, graphicsRequirements);
 }
 
 } // extern "C"

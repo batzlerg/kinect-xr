@@ -508,3 +508,21 @@ TEST_F(SessionManagementTest, DestroyInvalidSpace) {
 
     EXPECT_EQ(result, XR_ERROR_HANDLE_INVALID);
 }
+
+// Graphics Requirements Test
+
+TEST_F(SessionManagementTest, GetMetalGraphicsRequirements) {
+    // Get function pointer via xrGetInstanceProcAddr
+    PFN_xrGetMetalGraphicsRequirementsKHR pfnGetMetalGraphicsRequirements = nullptr;
+    XrResult result = xrGetInstanceProcAddr(instance_, "xrGetMetalGraphicsRequirementsKHR",
+        reinterpret_cast<PFN_xrVoidFunction*>(&pfnGetMetalGraphicsRequirements));
+    ASSERT_EQ(result, XR_SUCCESS);
+    ASSERT_NE(pfnGetMetalGraphicsRequirements, nullptr);
+
+    XrGraphicsRequirementsMetalKHR requirements{XR_TYPE_GRAPHICS_REQUIREMENTS_METAL_KHR};
+    result = pfnGetMetalGraphicsRequirements(instance_, systemId_, &requirements);
+
+    ASSERT_EQ(result, XR_SUCCESS);
+    // nullptr indicates any Metal device is acceptable
+    EXPECT_EQ(requirements.metalDevice, nullptr);
+}

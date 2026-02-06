@@ -493,4 +493,30 @@ bool KinectXRRuntime::isValidSpace(XrSpace space) const {
     return spaces_.find(space) != spaces_.end();
 }
 
+XrResult KinectXRRuntime::getMetalGraphicsRequirements(XrInstance instance, XrSystemId systemId, XrGraphicsRequirementsMetalKHR* graphicsRequirements) {
+    if (!graphicsRequirements) {
+        return XR_ERROR_VALIDATION_FAILURE;
+    }
+
+    if (graphicsRequirements->type != XR_TYPE_GRAPHICS_REQUIREMENTS_METAL_KHR) {
+        return XR_ERROR_VALIDATION_FAILURE;
+    }
+
+    // Validate instance and system
+    if (!isValidInstance(instance)) {
+        return XR_ERROR_HANDLE_INVALID;
+    }
+
+    if (!isValidSystem(instance, systemId)) {
+        return XR_ERROR_SYSTEM_INVALID;
+    }
+
+    // We support any Metal device - minimal requirements
+    // nullptr indicates any Metal device is acceptable
+    graphicsRequirements->metalDevice = nullptr;
+
+    return XR_SUCCESS;
+}
+
 } // namespace kinect_xr
+
