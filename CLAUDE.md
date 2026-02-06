@@ -116,7 +116,46 @@ All unit tests pass without physical Kinect. Integration tests will skip gracefu
 [  SKIPPED ] No Kinect device connected, skipping test
 ```
 
-Runtime tests (M6) do not require Kinect hardware and test OpenXR API compliance.
+Runtime tests do not require Kinect hardware and test OpenXR API compliance.
+
+## Testing With Hardware
+
+**macOS requires elevated privileges** for USB device access (libfreenect/libusb limitation).
+
+### One-Time Setup
+
+Run the setup script to configure passwordless sudo for test binaries:
+
+```bash
+./scripts/setup-test-permissions.sh
+```
+
+This creates `/etc/sudoers.d/kinect-xr-tests` allowing the specific test binaries to run without password prompts.
+
+### Running Hardware Tests
+
+After setup, use the test runner:
+
+```bash
+./scripts/run-hardware-tests.sh          # All tests
+./scripts/run-hardware-tests.sh unit     # Unit tests only
+./scripts/run-hardware-tests.sh integration  # Integration tests only
+```
+
+Or run directly with sudo:
+
+```bash
+sudo ./build/bin/unit_tests
+sudo ./build/bin/integration_tests
+```
+
+### Removing Permissions
+
+To remove the sudoers configuration:
+
+```bash
+sudo rm /etc/sudoers.d/kinect-xr-tests
+```
 
 ## Docs
 
