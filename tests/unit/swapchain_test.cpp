@@ -105,3 +105,176 @@ TEST_F(SwapchainTest, EnumerateFormats_NullFormatsWithCapacity) {
     XrResult result = KinectXRRuntime::getInstance().enumerateSwapchainFormats(session_, 1, &formatCount, nullptr);
     EXPECT_EQ(result, XR_ERROR_VALIDATION_FAILURE);
 }
+
+// M3 Tests: Swapchain Lifecycle (mock, no real Metal)
+
+TEST_F(SwapchainTest, CreateSwapchain_Success) {
+    XrSwapchainCreateInfo createInfo{XR_TYPE_SWAPCHAIN_CREATE_INFO};
+    createInfo.format = 80;  // BGRA8Unorm
+    createInfo.width = 640;
+    createInfo.height = 480;
+    createInfo.sampleCount = 1;
+    createInfo.arraySize = 1;
+    createInfo.usageFlags = XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT;
+
+    XrSwapchain swapchain = XR_NULL_HANDLE;
+    XrResult result = KinectXRRuntime::getInstance().createSwapchain(session_, &createInfo, &swapchain);
+    EXPECT_EQ(result, XR_SUCCESS);
+    EXPECT_NE(swapchain, XR_NULL_HANDLE);
+
+    // Verify swapchain is valid
+    EXPECT_TRUE(KinectXRRuntime::getInstance().isValidSwapchain(swapchain));
+
+    // Cleanup
+    KinectXRRuntime::getInstance().destroySwapchain(swapchain);
+}
+
+TEST_F(SwapchainTest, CreateSwapchain_InvalidFormat) {
+    XrSwapchainCreateInfo createInfo{XR_TYPE_SWAPCHAIN_CREATE_INFO};
+    createInfo.format = 999;  // Invalid format
+    createInfo.width = 640;
+    createInfo.height = 480;
+    createInfo.sampleCount = 1;
+    createInfo.arraySize = 1;
+    createInfo.usageFlags = XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT;
+
+    XrSwapchain swapchain = XR_NULL_HANDLE;
+    XrResult result = KinectXRRuntime::getInstance().createSwapchain(session_, &createInfo, &swapchain);
+    EXPECT_EQ(result, XR_ERROR_SWAPCHAIN_FORMAT_UNSUPPORTED);
+}
+
+TEST_F(SwapchainTest, CreateSwapchain_OversizedDimensions) {
+    XrSwapchainCreateInfo createInfo{XR_TYPE_SWAPCHAIN_CREATE_INFO};
+    createInfo.format = 80;
+    createInfo.width = 4096;  // Larger than Kinect's 640
+    createInfo.height = 4096;
+    createInfo.sampleCount = 1;
+    createInfo.arraySize = 1;
+    createInfo.usageFlags = XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT;
+
+    XrSwapchain swapchain = XR_NULL_HANDLE;
+    XrResult result = KinectXRRuntime::getInstance().createSwapchain(session_, &createInfo, &swapchain);
+    EXPECT_EQ(result, XR_ERROR_SIZE_INSUFFICIENT);
+}
+
+TEST_F(SwapchainTest, CreateSwapchain_InvalidSampleCount) {
+    XrSwapchainCreateInfo createInfo{XR_TYPE_SWAPCHAIN_CREATE_INFO};
+    createInfo.format = 80;
+    createInfo.width = 640;
+    createInfo.height = 480;
+    createInfo.sampleCount = 4;  // MSAA not supported
+    createInfo.arraySize = 1;
+    createInfo.usageFlags = XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT;
+
+    XrSwapchain swapchain = XR_NULL_HANDLE;
+    XrResult result = KinectXRRuntime::getInstance().createSwapchain(session_, &createInfo, &swapchain);
+    EXPECT_EQ(result, XR_ERROR_FEATURE_UNSUPPORTED);
+}
+
+TEST_F(SwapchainTest, CreateSwapchain_InvalidSession) {
+    XrSwapchainCreateInfo createInfo{XR_TYPE_SWAPCHAIN_CREATE_INFO};
+    createInfo.format = 80;
+    createInfo.width = 640;
+    createInfo.height = 480;
+    createInfo.sampleCount = 1;
+    createInfo.arraySize = 1;
+    createInfo.usageFlags = XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT;
+
+    XrSession fakeSession = reinterpret_cast<XrSession>(0x99999);
+    XrSwapchain swapchain = XR_NULL_HANDLE;
+    XrResult result = KinectXRRuntime::getInstance().createSwapchain(fakeSession, &createInfo, &swapchain);
+    EXPECT_EQ(result, XR_ERROR_HANDLE_INVALID);
+}
+
+TEST_F(SwapchainTest, DestroySwapchain_Success) {
+    // Create swapchain
+    XrSwapchainCreateInfo createInfo{XR_TYPE_SWAPCHAIN_CREATE_INFO};
+    createInfo.format = 80;
+    createInfo.width = 640;
+    createInfo.height = 480;
+    createInfo.sampleCount = 1;
+    createInfo.arraySize = 1;
+    createInfo.usageFlags = XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT;
+
+    XrSwapchain swapchain = XR_NULL_HANDLE;
+    XrResult result = KinectXRRuntime::getInstance().createSwapchain(session_, &createInfo, &swapchain);
+    ASSERT_EQ(result, XR_SUCCESS);
+
+    // Destroy it
+    result = KinectXRRuntime::getInstance().destroySwapchain(swapchain);
+    EXPECT_EQ(result, XR_SUCCESS);
+
+    // Should no longer be valid
+    EXPECT_FALSE(KinectXRRuntime::getInstance().isValidSwapchain(swapchain));
+}
+
+TEST_F(SwapchainTest, DestroySwapchain_InvalidHandle) {
+    XrSwapchain fakeHandle = reinterpret_cast<XrSwapchain>(0x99999);
+    XrResult result = KinectXRRuntime::getInstance().destroySwapchain(fakeHandle);
+    EXPECT_EQ(result, XR_ERROR_HANDLE_INVALID);
+}
+
+TEST_F(SwapchainTest, EnumerateSwapchainImages_CountQuery) {
+    // Create swapchain
+    XrSwapchainCreateInfo createInfo{XR_TYPE_SWAPCHAIN_CREATE_INFO};
+    createInfo.format = 80;
+    createInfo.width = 640;
+    createInfo.height = 480;
+    createInfo.sampleCount = 1;
+    createInfo.arraySize = 1;
+    createInfo.usageFlags = XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT;
+
+    XrSwapchain swapchain = XR_NULL_HANDLE;
+    XrResult result = KinectXRRuntime::getInstance().createSwapchain(session_, &createInfo, &swapchain);
+    ASSERT_EQ(result, XR_SUCCESS);
+
+    // Query image count
+    uint32_t imageCount = 0;
+    result = KinectXRRuntime::getInstance().enumerateSwapchainImages(swapchain, 0, &imageCount, nullptr);
+    EXPECT_EQ(result, XR_SUCCESS);
+    EXPECT_EQ(imageCount, 3u);  // Triple buffering
+
+    // Cleanup
+    KinectXRRuntime::getInstance().destroySwapchain(swapchain);
+}
+
+TEST_F(SwapchainTest, EnumerateSwapchainImages_GetImages) {
+    // Create swapchain
+    XrSwapchainCreateInfo createInfo{XR_TYPE_SWAPCHAIN_CREATE_INFO};
+    createInfo.format = 80;
+    createInfo.width = 640;
+    createInfo.height = 480;
+    createInfo.sampleCount = 1;
+    createInfo.arraySize = 1;
+    createInfo.usageFlags = XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT;
+
+    XrSwapchain swapchain = XR_NULL_HANDLE;
+    XrResult result = KinectXRRuntime::getInstance().createSwapchain(session_, &createInfo, &swapchain);
+    ASSERT_EQ(result, XR_SUCCESS);
+
+    // Get images
+    XrSwapchainImageMetalKHR images[3] = {};
+    for (auto& img : images) {
+        img.type = XR_TYPE_SWAPCHAIN_IMAGE_METAL_KHR;
+    }
+    uint32_t imageCount = 3;
+    result = KinectXRRuntime::getInstance().enumerateSwapchainImages(
+        swapchain, 3, &imageCount, reinterpret_cast<XrSwapchainImageBaseHeader*>(images));
+    EXPECT_EQ(result, XR_SUCCESS);
+    EXPECT_EQ(imageCount, 3u);
+
+    // For M3, images should be nullptr (no real Metal yet)
+    for (const auto& img : images) {
+        EXPECT_EQ(img.texture, nullptr);
+    }
+
+    // Cleanup
+    KinectXRRuntime::getInstance().destroySwapchain(swapchain);
+}
+
+TEST_F(SwapchainTest, EnumerateSwapchainImages_InvalidHandle) {
+    XrSwapchain fakeHandle = reinterpret_cast<XrSwapchain>(0x99999);
+    uint32_t imageCount = 0;
+    XrResult result = KinectXRRuntime::getInstance().enumerateSwapchainImages(fakeHandle, 0, &imageCount, nullptr);
+    EXPECT_EQ(result, XR_ERROR_HANDLE_INVALID);
+}

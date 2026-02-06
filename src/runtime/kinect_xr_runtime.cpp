@@ -571,18 +571,119 @@ XrResult KinectXRRuntime::enumerateSwapchainFormats(XrSession session, uint32_t 
 }
 
 XrResult KinectXRRuntime::createSwapchain(XrSession session, const XrSwapchainCreateInfo* createInfo, XrSwapchain* swapchain) {
-    // Stub for M3
-    return XR_ERROR_RUNTIME_FAILURE;
+    if (!createInfo || !swapchain) {
+        return XR_ERROR_VALIDATION_FAILURE;
+    }
+
+    if (createInfo->type != XR_TYPE_SWAPCHAIN_CREATE_INFO) {
+        return XR_ERROR_VALIDATION_FAILURE;
+    }
+
+    // Validate session
+    if (!isValidSession(session)) {
+        return XR_ERROR_HANDLE_INVALID;
+    }
+
+    // Validate format (must be BGRA8Unorm = 80)
+    if (createInfo->format != 80) {
+        return XR_ERROR_SWAPCHAIN_FORMAT_UNSUPPORTED;
+    }
+
+    // Validate dimensions (Kinect is 640x480)
+    if (createInfo->width > 640 || createInfo->height > 480) {
+        return XR_ERROR_SIZE_INSUFFICIENT;
+    }
+
+    // We only support single-sample images
+    if (createInfo->sampleCount != 1) {
+        return XR_ERROR_FEATURE_UNSUPPORTED;
+    }
+
+    // Array size must be 1 (no texture arrays)
+    if (createInfo->arraySize != 1) {
+        return XR_ERROR_FEATURE_UNSUPPORTED;
+    }
+
+    // Validate usage flags (must be COLOR_ATTACHMENT)
+    if (!(createInfo->usageFlags & XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT)) {
+        return XR_ERROR_FEATURE_UNSUPPORTED;
+    }
+
+    // Create swapchain handle
+    std::lock_guard<std::mutex> lock(swapchainMutex_);
+    XrSwapchain handle = reinterpret_cast<XrSwapchain>(nextSwapchainId_++);
+
+    auto swapchainData = std::make_unique<SwapchainData>(
+        handle, session, createInfo->width, createInfo->height, createInfo->format);
+
+    // For M3, leave metalTextures as nullptr (will create real textures in M4)
+    // For M4: Create real Metal textures here
+
+    swapchains_[handle] = std::move(swapchainData);
+    *swapchain = handle;
+
+    return XR_SUCCESS;
 }
 
 XrResult KinectXRRuntime::destroySwapchain(XrSwapchain swapchain) {
-    // Stub for M3
-    return XR_ERROR_RUNTIME_FAILURE;
+    std::lock_guard<std::mutex> lock(swapchainMutex_);
+
+    auto it = swapchains_.find(swapchain);
+    if (it == swapchains_.end()) {
+        return XR_ERROR_HANDLE_INVALID;
+    }
+
+    // For M4: Release Metal textures here
+    // For now, they're nullptr so nothing to release
+
+    swapchains_.erase(it);
+    return XR_SUCCESS;
 }
 
 XrResult KinectXRRuntime::enumerateSwapchainImages(XrSwapchain swapchain, uint32_t imageCapacityInput, uint32_t* imageCountOutput, XrSwapchainImageBaseHeader* images) {
-    // Stub for M3
-    return XR_ERROR_RUNTIME_FAILURE;
+    if (!imageCountOutput) {
+        return XR_ERROR_VALIDATION_FAILURE;
+    }
+
+    // Validate swapchain
+    std::lock_guard<std::mutex> lock(swapchainMutex_);
+    auto it = swapchains_.find(swapchain);
+    if (it == swapchains_.end()) {
+        return XR_ERROR_HANDLE_INVALID;
+    }
+
+    SwapchainData* data = it->second.get();
+
+    // Two-call idiom
+    if (imageCapacityInput == 0) {
+        *imageCountOutput = data->imageCount;
+        return XR_SUCCESS;
+    }
+
+    if (imageCapacityInput < data->imageCount) {
+        *imageCountOutput = data->imageCount;
+        return XR_ERROR_SIZE_INSUFFICIENT;
+    }
+
+    if (!images) {
+        return XR_ERROR_VALIDATION_FAILURE;
+    }
+
+    // Check that images are XrSwapchainImageMetalKHR structures
+    XrSwapchainImageMetalKHR* metalImages = reinterpret_cast<XrSwapchainImageMetalKHR*>(images);
+    if (metalImages[0].type != XR_TYPE_SWAPCHAIN_IMAGE_METAL_KHR) {
+        return XR_ERROR_VALIDATION_FAILURE;
+    }
+
+    // Fill in Metal texture handles
+    for (uint32_t i = 0; i < data->imageCount; ++i) {
+        metalImages[i].type = XR_TYPE_SWAPCHAIN_IMAGE_METAL_KHR;
+        metalImages[i].next = nullptr;
+        metalImages[i].texture = data->metalTextures[i];  // nullptr for M3, real textures in M4
+    }
+
+    *imageCountOutput = data->imageCount;
+    return XR_SUCCESS;
 }
 
 XrResult KinectXRRuntime::acquireSwapchainImage(XrSwapchain swapchain, const XrSwapchainImageAcquireInfo* acquireInfo, uint32_t* index) {
