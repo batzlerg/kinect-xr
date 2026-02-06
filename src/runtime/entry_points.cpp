@@ -105,6 +105,60 @@ XRAPI_ATTR XrResult XRAPI_CALL xrGetMetalGraphicsRequirementsKHR(
     XrSystemId systemId,
     XrGraphicsRequirementsMetalKHR* graphicsRequirements);
 
+XRAPI_ATTR XrResult XRAPI_CALL xrEnumerateSwapchainFormats(
+    XrSession session,
+    uint32_t formatCapacityInput,
+    uint32_t* formatCountOutput,
+    int64_t* formats);
+
+XRAPI_ATTR XrResult XRAPI_CALL xrCreateSwapchain(
+    XrSession session,
+    const XrSwapchainCreateInfo* createInfo,
+    XrSwapchain* swapchain);
+
+XRAPI_ATTR XrResult XRAPI_CALL xrDestroySwapchain(
+    XrSwapchain swapchain);
+
+XRAPI_ATTR XrResult XRAPI_CALL xrEnumerateSwapchainImages(
+    XrSwapchain swapchain,
+    uint32_t imageCapacityInput,
+    uint32_t* imageCountOutput,
+    XrSwapchainImageBaseHeader* images);
+
+XRAPI_ATTR XrResult XRAPI_CALL xrAcquireSwapchainImage(
+    XrSwapchain swapchain,
+    const XrSwapchainImageAcquireInfo* acquireInfo,
+    uint32_t* index);
+
+XRAPI_ATTR XrResult XRAPI_CALL xrWaitSwapchainImage(
+    XrSwapchain swapchain,
+    const XrSwapchainImageWaitInfo* waitInfo);
+
+XRAPI_ATTR XrResult XRAPI_CALL xrReleaseSwapchainImage(
+    XrSwapchain swapchain,
+    const XrSwapchainImageReleaseInfo* releaseInfo);
+
+XRAPI_ATTR XrResult XRAPI_CALL xrWaitFrame(
+    XrSession session,
+    const XrFrameWaitInfo* frameWaitInfo,
+    XrFrameState* frameState);
+
+XRAPI_ATTR XrResult XRAPI_CALL xrBeginFrame(
+    XrSession session,
+    const XrFrameBeginInfo* frameBeginInfo);
+
+XRAPI_ATTR XrResult XRAPI_CALL xrEndFrame(
+    XrSession session,
+    const XrFrameEndInfo* frameEndInfo);
+
+XRAPI_ATTR XrResult XRAPI_CALL xrLocateViews(
+    XrSession session,
+    const XrViewLocateInfo* viewLocateInfo,
+    XrViewState* viewState,
+    uint32_t viewCapacityInput,
+    uint32_t* viewCountOutput,
+    XrView* views);
+
 // Main entry point for the runtime
 XRAPI_ATTR XrResult XRAPI_CALL xrGetInstanceProcAddr(
     XrInstance instance,
@@ -212,6 +266,50 @@ XRAPI_ATTR XrResult XRAPI_CALL xrGetInstanceProcAddr(
     }
     if (strcmp(name, "xrGetMetalGraphicsRequirementsKHR") == 0) {
         *function = reinterpret_cast<PFN_xrVoidFunction>(xrGetMetalGraphicsRequirementsKHR);
+        return XR_SUCCESS;
+    }
+    if (strcmp(name, "xrEnumerateSwapchainFormats") == 0) {
+        *function = reinterpret_cast<PFN_xrVoidFunction>(xrEnumerateSwapchainFormats);
+        return XR_SUCCESS;
+    }
+    if (strcmp(name, "xrCreateSwapchain") == 0) {
+        *function = reinterpret_cast<PFN_xrVoidFunction>(xrCreateSwapchain);
+        return XR_SUCCESS;
+    }
+    if (strcmp(name, "xrDestroySwapchain") == 0) {
+        *function = reinterpret_cast<PFN_xrVoidFunction>(xrDestroySwapchain);
+        return XR_SUCCESS;
+    }
+    if (strcmp(name, "xrEnumerateSwapchainImages") == 0) {
+        *function = reinterpret_cast<PFN_xrVoidFunction>(xrEnumerateSwapchainImages);
+        return XR_SUCCESS;
+    }
+    if (strcmp(name, "xrAcquireSwapchainImage") == 0) {
+        *function = reinterpret_cast<PFN_xrVoidFunction>(xrAcquireSwapchainImage);
+        return XR_SUCCESS;
+    }
+    if (strcmp(name, "xrWaitSwapchainImage") == 0) {
+        *function = reinterpret_cast<PFN_xrVoidFunction>(xrWaitSwapchainImage);
+        return XR_SUCCESS;
+    }
+    if (strcmp(name, "xrReleaseSwapchainImage") == 0) {
+        *function = reinterpret_cast<PFN_xrVoidFunction>(xrReleaseSwapchainImage);
+        return XR_SUCCESS;
+    }
+    if (strcmp(name, "xrWaitFrame") == 0) {
+        *function = reinterpret_cast<PFN_xrVoidFunction>(xrWaitFrame);
+        return XR_SUCCESS;
+    }
+    if (strcmp(name, "xrBeginFrame") == 0) {
+        *function = reinterpret_cast<PFN_xrVoidFunction>(xrBeginFrame);
+        return XR_SUCCESS;
+    }
+    if (strcmp(name, "xrEndFrame") == 0) {
+        *function = reinterpret_cast<PFN_xrVoidFunction>(xrEndFrame);
+        return XR_SUCCESS;
+    }
+    if (strcmp(name, "xrLocateViews") == 0) {
+        *function = reinterpret_cast<PFN_xrVoidFunction>(xrLocateViews);
         return XR_SUCCESS;
     }
 
@@ -649,6 +747,97 @@ XRAPI_ATTR XrResult XRAPI_CALL xrGetMetalGraphicsRequirementsKHR(
     XrGraphicsRequirementsMetalKHR* graphicsRequirements) {
 
     return kinect_xr::KinectXRRuntime::getInstance().getMetalGraphicsRequirements(instance, systemId, graphicsRequirements);
+}
+
+// Swapchain functions
+
+XRAPI_ATTR XrResult XRAPI_CALL xrEnumerateSwapchainFormats(
+    XrSession session,
+    uint32_t formatCapacityInput,
+    uint32_t* formatCountOutput,
+    int64_t* formats) {
+
+    return kinect_xr::KinectXRRuntime::getInstance().enumerateSwapchainFormats(session, formatCapacityInput, formatCountOutput, formats);
+}
+
+XRAPI_ATTR XrResult XRAPI_CALL xrCreateSwapchain(
+    XrSession session,
+    const XrSwapchainCreateInfo* createInfo,
+    XrSwapchain* swapchain) {
+
+    return kinect_xr::KinectXRRuntime::getInstance().createSwapchain(session, createInfo, swapchain);
+}
+
+XRAPI_ATTR XrResult XRAPI_CALL xrDestroySwapchain(
+    XrSwapchain swapchain) {
+
+    return kinect_xr::KinectXRRuntime::getInstance().destroySwapchain(swapchain);
+}
+
+XRAPI_ATTR XrResult XRAPI_CALL xrEnumerateSwapchainImages(
+    XrSwapchain swapchain,
+    uint32_t imageCapacityInput,
+    uint32_t* imageCountOutput,
+    XrSwapchainImageBaseHeader* images) {
+
+    return kinect_xr::KinectXRRuntime::getInstance().enumerateSwapchainImages(swapchain, imageCapacityInput, imageCountOutput, images);
+}
+
+XRAPI_ATTR XrResult XRAPI_CALL xrAcquireSwapchainImage(
+    XrSwapchain swapchain,
+    const XrSwapchainImageAcquireInfo* acquireInfo,
+    uint32_t* index) {
+
+    return kinect_xr::KinectXRRuntime::getInstance().acquireSwapchainImage(swapchain, acquireInfo, index);
+}
+
+XRAPI_ATTR XrResult XRAPI_CALL xrWaitSwapchainImage(
+    XrSwapchain swapchain,
+    const XrSwapchainImageWaitInfo* waitInfo) {
+
+    return kinect_xr::KinectXRRuntime::getInstance().waitSwapchainImage(swapchain, waitInfo);
+}
+
+XRAPI_ATTR XrResult XRAPI_CALL xrReleaseSwapchainImage(
+    XrSwapchain swapchain,
+    const XrSwapchainImageReleaseInfo* releaseInfo) {
+
+    return kinect_xr::KinectXRRuntime::getInstance().releaseSwapchainImage(swapchain, releaseInfo);
+}
+
+// Frame loop functions
+
+XRAPI_ATTR XrResult XRAPI_CALL xrWaitFrame(
+    XrSession session,
+    const XrFrameWaitInfo* frameWaitInfo,
+    XrFrameState* frameState) {
+
+    return kinect_xr::KinectXRRuntime::getInstance().waitFrame(session, frameWaitInfo, frameState);
+}
+
+XRAPI_ATTR XrResult XRAPI_CALL xrBeginFrame(
+    XrSession session,
+    const XrFrameBeginInfo* frameBeginInfo) {
+
+    return kinect_xr::KinectXRRuntime::getInstance().beginFrame(session, frameBeginInfo);
+}
+
+XRAPI_ATTR XrResult XRAPI_CALL xrEndFrame(
+    XrSession session,
+    const XrFrameEndInfo* frameEndInfo) {
+
+    return kinect_xr::KinectXRRuntime::getInstance().endFrame(session, frameEndInfo);
+}
+
+XRAPI_ATTR XrResult XRAPI_CALL xrLocateViews(
+    XrSession session,
+    const XrViewLocateInfo* viewLocateInfo,
+    XrViewState* viewState,
+    uint32_t viewCapacityInput,
+    uint32_t* viewCountOutput,
+    XrView* views) {
+
+    return kinect_xr::KinectXRRuntime::getInstance().locateViews(session, viewLocateInfo, viewState, viewCapacityInput, viewCountOutput, views);
 }
 
 } // extern "C"
