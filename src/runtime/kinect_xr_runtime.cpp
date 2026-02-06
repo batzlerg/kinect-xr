@@ -715,18 +715,92 @@ XrResult KinectXRRuntime::enumerateSwapchainImages(XrSwapchain swapchain, uint32
 }
 
 XrResult KinectXRRuntime::acquireSwapchainImage(XrSwapchain swapchain, const XrSwapchainImageAcquireInfo* acquireInfo, uint32_t* index) {
-    // Stub for M5
-    return XR_ERROR_RUNTIME_FAILURE;
+    if (!acquireInfo || !index) {
+        return XR_ERROR_VALIDATION_FAILURE;
+    }
+
+    if (acquireInfo->type != XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO) {
+        return XR_ERROR_VALIDATION_FAILURE;
+    }
+
+    std::lock_guard<std::mutex> lock(swapchainMutex_);
+    auto it = swapchains_.find(swapchain);
+    if (it == swapchains_.end()) {
+        return XR_ERROR_HANDLE_INVALID;
+    }
+
+    SwapchainData* data = it->second.get();
+
+    // Only one image can be acquired at a time
+    if (data->imageAcquired) {
+        return XR_ERROR_CALL_ORDER_INVALID;
+    }
+
+    // Return current image index and advance for next time
+    *index = data->currentImageIndex;
+    data->imageAcquired = true;
+
+    // Cycle to next image (0→1→2→0)
+    data->currentImageIndex = (data->currentImageIndex + 1) % data->imageCount;
+
+    return XR_SUCCESS;
 }
 
 XrResult KinectXRRuntime::waitSwapchainImage(XrSwapchain swapchain, const XrSwapchainImageWaitInfo* waitInfo) {
-    // Stub for M5
-    return XR_ERROR_RUNTIME_FAILURE;
+    if (!waitInfo) {
+        return XR_ERROR_VALIDATION_FAILURE;
+    }
+
+    if (waitInfo->type != XR_TYPE_SWAPCHAIN_IMAGE_WAIT_INFO) {
+        return XR_ERROR_VALIDATION_FAILURE;
+    }
+
+    std::lock_guard<std::mutex> lock(swapchainMutex_);
+    auto it = swapchains_.find(swapchain);
+    if (it == swapchains_.end()) {
+        return XR_ERROR_HANDLE_INVALID;
+    }
+
+    SwapchainData* data = it->second.get();
+
+    // Must have acquired an image first
+    if (!data->imageAcquired) {
+        return XR_ERROR_CALL_ORDER_INVALID;
+    }
+
+    // For Kinect XR, images are always immediately ready (no GPU work to wait for)
+    // In a real implementation, this would block until the GPU finishes rendering
+    // The timeout parameter is ignored since we return immediately
+
+    return XR_SUCCESS;
 }
 
 XrResult KinectXRRuntime::releaseSwapchainImage(XrSwapchain swapchain, const XrSwapchainImageReleaseInfo* releaseInfo) {
-    // Stub for M5
-    return XR_ERROR_RUNTIME_FAILURE;
+    if (!releaseInfo) {
+        return XR_ERROR_VALIDATION_FAILURE;
+    }
+
+    if (releaseInfo->type != XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO) {
+        return XR_ERROR_VALIDATION_FAILURE;
+    }
+
+    std::lock_guard<std::mutex> lock(swapchainMutex_);
+    auto it = swapchains_.find(swapchain);
+    if (it == swapchains_.end()) {
+        return XR_ERROR_HANDLE_INVALID;
+    }
+
+    SwapchainData* data = it->second.get();
+
+    // Must have acquired an image first
+    if (!data->imageAcquired) {
+        return XR_ERROR_CALL_ORDER_INVALID;
+    }
+
+    // Mark image as released (ready for next acquire)
+    data->imageAcquired = false;
+
+    return XR_SUCCESS;
 }
 
 } // namespace kinect_xr

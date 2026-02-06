@@ -207,3 +207,59 @@ TEST_F(SwapchainMetalTest, MultipleSwapchains_IndependentTextures) {
     KinectXRRuntime::getInstance().destroySwapchain(swapchain1);
     KinectXRRuntime::getInstance().destroySwapchain(swapchain2);
 }
+
+// M5 Integration Tests: Image Acquire/Release with Real Metal
+
+TEST_F(SwapchainMetalTest, AcquireReleaseFlow_WithRealMetal) {
+    // Create swapchain
+    XrSwapchainCreateInfo createInfo{XR_TYPE_SWAPCHAIN_CREATE_INFO};
+    createInfo.format = 80;
+    createInfo.width = 640;
+    createInfo.height = 480;
+    createInfo.sampleCount = 1;
+    createInfo.arraySize = 1;
+    createInfo.usageFlags = XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT;
+
+    XrSwapchain swapchain = XR_NULL_HANDLE;
+    XrResult result = KinectXRRuntime::getInstance().createSwapchain(session_, &createInfo, &swapchain);
+    ASSERT_EQ(result, XR_SUCCESS);
+
+    // Simulate rendering loop: acquire → wait → release
+    XrSwapchainImageAcquireInfo acquireInfo{XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO};
+    XrSwapchainImageWaitInfo waitInfo{XR_TYPE_SWAPCHAIN_IMAGE_WAIT_INFO};
+    waitInfo.timeout = XR_INFINITE_DURATION;
+    XrSwapchainImageReleaseInfo releaseInfo{XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO};
+
+    // Get all images
+    XrSwapchainImageMetalKHR images[3] = {};
+    for (auto& img : images) {
+        img.type = XR_TYPE_SWAPCHAIN_IMAGE_METAL_KHR;
+    }
+    uint32_t imageCount = 3;
+    result = KinectXRRuntime::getInstance().enumerateSwapchainImages(
+        swapchain, 3, &imageCount, reinterpret_cast<XrSwapchainImageBaseHeader*>(images));
+    ASSERT_EQ(result, XR_SUCCESS);
+
+    // Render 5 frames, verifying we cycle through images
+    for (int frame = 0; frame < 5; ++frame) {
+        uint32_t index = 999;
+        result = KinectXRRuntime::getInstance().acquireSwapchainImage(swapchain, &acquireInfo, &index);
+        ASSERT_EQ(result, XR_SUCCESS);
+        ASSERT_LT(index, 3u);
+
+        // Verify we got a real Metal texture
+        ASSERT_NE(images[index].texture, nullptr);
+        id<MTLTexture> texture = (__bridge id<MTLTexture>)images[index].texture;
+        EXPECT_EQ(texture.width, 640u);
+        EXPECT_EQ(texture.height, 480u);
+
+        result = KinectXRRuntime::getInstance().waitSwapchainImage(swapchain, &waitInfo);
+        ASSERT_EQ(result, XR_SUCCESS);
+
+        result = KinectXRRuntime::getInstance().releaseSwapchainImage(swapchain, &releaseInfo);
+        ASSERT_EQ(result, XR_SUCCESS);
+    }
+
+    // Cleanup
+    KinectXRRuntime::getInstance().destroySwapchain(swapchain);
+}

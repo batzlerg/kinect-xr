@@ -278,3 +278,185 @@ TEST_F(SwapchainTest, EnumerateSwapchainImages_InvalidHandle) {
     XrResult result = KinectXRRuntime::getInstance().enumerateSwapchainImages(fakeHandle, 0, &imageCount, nullptr);
     EXPECT_EQ(result, XR_ERROR_HANDLE_INVALID);
 }
+
+// M5 Tests: Image Acquire/Wait/Release
+
+TEST_F(SwapchainTest, AcquireSwapchainImage_Success) {
+    // Create swapchain
+    XrSwapchainCreateInfo createInfo{XR_TYPE_SWAPCHAIN_CREATE_INFO};
+    createInfo.format = 80;
+    createInfo.width = 640;
+    createInfo.height = 480;
+    createInfo.sampleCount = 1;
+    createInfo.arraySize = 1;
+    createInfo.usageFlags = XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT;
+
+    XrSwapchain swapchain = XR_NULL_HANDLE;
+    XrResult result = KinectXRRuntime::getInstance().createSwapchain(session_, &createInfo, &swapchain);
+    ASSERT_EQ(result, XR_SUCCESS);
+
+    // Acquire first image
+    XrSwapchainImageAcquireInfo acquireInfo{XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO};
+    uint32_t index = 999;
+    result = KinectXRRuntime::getInstance().acquireSwapchainImage(swapchain, &acquireInfo, &index);
+    EXPECT_EQ(result, XR_SUCCESS);
+    EXPECT_EQ(index, 0u);  // Should get image 0 first
+
+    // Release image
+    XrSwapchainImageReleaseInfo releaseInfo{XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO};
+    result = KinectXRRuntime::getInstance().releaseSwapchainImage(swapchain, &releaseInfo);
+    EXPECT_EQ(result, XR_SUCCESS);
+
+    // Cleanup
+    KinectXRRuntime::getInstance().destroySwapchain(swapchain);
+}
+
+TEST_F(SwapchainTest, AcquireSwapchainImage_Cycling) {
+    // Create swapchain
+    XrSwapchainCreateInfo createInfo{XR_TYPE_SWAPCHAIN_CREATE_INFO};
+    createInfo.format = 80;
+    createInfo.width = 640;
+    createInfo.height = 480;
+    createInfo.sampleCount = 1;
+    createInfo.arraySize = 1;
+    createInfo.usageFlags = XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT;
+
+    XrSwapchain swapchain = XR_NULL_HANDLE;
+    XrResult result = KinectXRRuntime::getInstance().createSwapchain(session_, &createInfo, &swapchain);
+    ASSERT_EQ(result, XR_SUCCESS);
+
+    XrSwapchainImageAcquireInfo acquireInfo{XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO};
+    XrSwapchainImageReleaseInfo releaseInfo{XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO};
+
+    // Acquire and release 5 times, verifying cycling: 0→1→2→0→1
+    uint32_t expectedIndices[] = {0, 1, 2, 0, 1};
+    for (uint32_t expected : expectedIndices) {
+        uint32_t index = 999;
+        result = KinectXRRuntime::getInstance().acquireSwapchainImage(swapchain, &acquireInfo, &index);
+        ASSERT_EQ(result, XR_SUCCESS);
+        EXPECT_EQ(index, expected) << "Expected image " << expected;
+
+        result = KinectXRRuntime::getInstance().releaseSwapchainImage(swapchain, &releaseInfo);
+        ASSERT_EQ(result, XR_SUCCESS);
+    }
+
+    // Cleanup
+    KinectXRRuntime::getInstance().destroySwapchain(swapchain);
+}
+
+TEST_F(SwapchainTest, AcquireSwapchainImage_DoubleAcquire) {
+    // Create swapchain
+    XrSwapchainCreateInfo createInfo{XR_TYPE_SWAPCHAIN_CREATE_INFO};
+    createInfo.format = 80;
+    createInfo.width = 640;
+    createInfo.height = 480;
+    createInfo.sampleCount = 1;
+    createInfo.arraySize = 1;
+    createInfo.usageFlags = XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT;
+
+    XrSwapchain swapchain = XR_NULL_HANDLE;
+    XrResult result = KinectXRRuntime::getInstance().createSwapchain(session_, &createInfo, &swapchain);
+    ASSERT_EQ(result, XR_SUCCESS);
+
+    // Acquire first image
+    XrSwapchainImageAcquireInfo acquireInfo{XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO};
+    uint32_t index = 999;
+    result = KinectXRRuntime::getInstance().acquireSwapchainImage(swapchain, &acquireInfo, &index);
+    ASSERT_EQ(result, XR_SUCCESS);
+
+    // Try to acquire again without releasing - should fail
+    result = KinectXRRuntime::getInstance().acquireSwapchainImage(swapchain, &acquireInfo, &index);
+    EXPECT_EQ(result, XR_ERROR_CALL_ORDER_INVALID);
+
+    // Release and cleanup
+    XrSwapchainImageReleaseInfo releaseInfo{XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO};
+    KinectXRRuntime::getInstance().releaseSwapchainImage(swapchain, &releaseInfo);
+    KinectXRRuntime::getInstance().destroySwapchain(swapchain);
+}
+
+TEST_F(SwapchainTest, WaitSwapchainImage_Success) {
+    // Create swapchain
+    XrSwapchainCreateInfo createInfo{XR_TYPE_SWAPCHAIN_CREATE_INFO};
+    createInfo.format = 80;
+    createInfo.width = 640;
+    createInfo.height = 480;
+    createInfo.sampleCount = 1;
+    createInfo.arraySize = 1;
+    createInfo.usageFlags = XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT;
+
+    XrSwapchain swapchain = XR_NULL_HANDLE;
+    XrResult result = KinectXRRuntime::getInstance().createSwapchain(session_, &createInfo, &swapchain);
+    ASSERT_EQ(result, XR_SUCCESS);
+
+    // Acquire image
+    XrSwapchainImageAcquireInfo acquireInfo{XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO};
+    uint32_t index = 0;
+    result = KinectXRRuntime::getInstance().acquireSwapchainImage(swapchain, &acquireInfo, &index);
+    ASSERT_EQ(result, XR_SUCCESS);
+
+    // Wait for image (should succeed immediately)
+    XrSwapchainImageWaitInfo waitInfo{XR_TYPE_SWAPCHAIN_IMAGE_WAIT_INFO};
+    waitInfo.timeout = XR_INFINITE_DURATION;
+    result = KinectXRRuntime::getInstance().waitSwapchainImage(swapchain, &waitInfo);
+    EXPECT_EQ(result, XR_SUCCESS);
+
+    // Release and cleanup
+    XrSwapchainImageReleaseInfo releaseInfo{XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO};
+    KinectXRRuntime::getInstance().releaseSwapchainImage(swapchain, &releaseInfo);
+    KinectXRRuntime::getInstance().destroySwapchain(swapchain);
+}
+
+TEST_F(SwapchainTest, WaitSwapchainImage_WithoutAcquire) {
+    // Create swapchain
+    XrSwapchainCreateInfo createInfo{XR_TYPE_SWAPCHAIN_CREATE_INFO};
+    createInfo.format = 80;
+    createInfo.width = 640;
+    createInfo.height = 480;
+    createInfo.sampleCount = 1;
+    createInfo.arraySize = 1;
+    createInfo.usageFlags = XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT;
+
+    XrSwapchain swapchain = XR_NULL_HANDLE;
+    XrResult result = KinectXRRuntime::getInstance().createSwapchain(session_, &createInfo, &swapchain);
+    ASSERT_EQ(result, XR_SUCCESS);
+
+    // Try to wait without acquiring - should fail
+    XrSwapchainImageWaitInfo waitInfo{XR_TYPE_SWAPCHAIN_IMAGE_WAIT_INFO};
+    waitInfo.timeout = 0;
+    result = KinectXRRuntime::getInstance().waitSwapchainImage(swapchain, &waitInfo);
+    EXPECT_EQ(result, XR_ERROR_CALL_ORDER_INVALID);
+
+    // Cleanup
+    KinectXRRuntime::getInstance().destroySwapchain(swapchain);
+}
+
+TEST_F(SwapchainTest, ReleaseSwapchainImage_WithoutAcquire) {
+    // Create swapchain
+    XrSwapchainCreateInfo createInfo{XR_TYPE_SWAPCHAIN_CREATE_INFO};
+    createInfo.format = 80;
+    createInfo.width = 640;
+    createInfo.height = 480;
+    createInfo.sampleCount = 1;
+    createInfo.arraySize = 1;
+    createInfo.usageFlags = XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT;
+
+    XrSwapchain swapchain = XR_NULL_HANDLE;
+    XrResult result = KinectXRRuntime::getInstance().createSwapchain(session_, &createInfo, &swapchain);
+    ASSERT_EQ(result, XR_SUCCESS);
+
+    // Try to release without acquiring - should fail
+    XrSwapchainImageReleaseInfo releaseInfo{XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO};
+    result = KinectXRRuntime::getInstance().releaseSwapchainImage(swapchain, &releaseInfo);
+    EXPECT_EQ(result, XR_ERROR_CALL_ORDER_INVALID);
+
+    // Cleanup
+    KinectXRRuntime::getInstance().destroySwapchain(swapchain);
+}
+
+TEST_F(SwapchainTest, AcquireSwapchainImage_InvalidHandle) {
+    XrSwapchain fakeHandle = reinterpret_cast<XrSwapchain>(0x99999);
+    XrSwapchainImageAcquireInfo acquireInfo{XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO};
+    uint32_t index = 0;
+    XrResult result = KinectXRRuntime::getInstance().acquireSwapchainImage(fakeHandle, &acquireInfo, &index);
+    EXPECT_EQ(result, XR_ERROR_HANDLE_INVALID);
+}
