@@ -28,6 +28,16 @@ XRAPI_ATTR XrResult XRAPI_CALL xrGetInstanceProperties(
     XrInstance instance,
     XrInstanceProperties* instanceProperties);
 
+XRAPI_ATTR XrResult XRAPI_CALL xrGetSystem(
+    XrInstance instance,
+    const XrSystemGetInfo* getInfo,
+    XrSystemId* systemId);
+
+XRAPI_ATTR XrResult XRAPI_CALL xrGetSystemProperties(
+    XrInstance instance,
+    XrSystemId systemId,
+    XrSystemProperties* properties);
+
 // Main entry point for the runtime
 XRAPI_ATTR XrResult XRAPI_CALL xrGetInstanceProcAddr(
     XrInstance instance,
@@ -75,6 +85,14 @@ XRAPI_ATTR XrResult XRAPI_CALL xrGetInstanceProcAddr(
     }
     if (strcmp(name, "xrGetInstanceProcAddr") == 0) {
         *function = reinterpret_cast<PFN_xrVoidFunction>(xrGetInstanceProcAddr);
+        return XR_SUCCESS;
+    }
+    if (strcmp(name, "xrGetSystem") == 0) {
+        *function = reinterpret_cast<PFN_xrVoidFunction>(xrGetSystem);
+        return XR_SUCCESS;
+    }
+    if (strcmp(name, "xrGetSystemProperties") == 0) {
+        *function = reinterpret_cast<PFN_xrVoidFunction>(xrGetSystemProperties);
         return XR_SUCCESS;
     }
 
@@ -230,6 +248,24 @@ XRAPI_ATTR XrResult XRAPI_CALL xrGetInstanceProperties(
     instanceProperties->runtimeName[XR_MAX_RUNTIME_NAME_SIZE - 1] = '\0';
 
     return XR_SUCCESS;
+}
+
+// System management functions
+
+XRAPI_ATTR XrResult XRAPI_CALL xrGetSystem(
+    XrInstance instance,
+    const XrSystemGetInfo* getInfo,
+    XrSystemId* systemId) {
+
+    return kinect_xr::KinectXRRuntime::getInstance().getSystem(instance, getInfo, systemId);
+}
+
+XRAPI_ATTR XrResult XRAPI_CALL xrGetSystemProperties(
+    XrInstance instance,
+    XrSystemId systemId,
+    XrSystemProperties* properties) {
+
+    return kinect_xr::KinectXRRuntime::getInstance().getSystemProperties(instance, systemId, properties);
 }
 
 } // extern "C"

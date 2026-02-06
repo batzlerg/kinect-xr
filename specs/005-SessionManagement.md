@@ -99,7 +99,7 @@ Runtime supports full session lifecycle. Applications can create sessions with M
 
 ## Milestones
 
-- [ ] **M1: System enumeration and properties**
+- [x] **M1: System enumeration and properties**
   - Add SystemData struct
   - Implement xrGetSystem
   - Implement xrGetSystemProperties
@@ -170,7 +170,12 @@ Runtime supports full session lifecycle. Applications can create sessions with M
 ## Implementation Log
 
 ### Milestone 1
-- (To be filled during implementation)
+- Added SystemData struct to runtime.h with systemId and formFactor
+- Implemented xrGetSystem - creates system lazily on first call, validates HEAD_MOUNTED_DISPLAY form factor
+- Implemented xrGetSystemProperties - returns Kinect specifications (640x480, no tracking)
+- Added isValidSystem() helper for system ID validation
+- Created system_management_test.cpp with 8 unit tests
+- All tests passing - system enumeration working correctly
 
 ### Milestone 2
 - (To be filled during implementation)

@@ -2,6 +2,7 @@ add_executable(unit_tests
   unit_test_main.cpp
   libfreenect_test.cpp
   device_unit_test.cpp
+  system_management_test.cpp
 )
 
 target_link_libraries(unit_tests
@@ -9,6 +10,8 @@ target_link_libraries(unit_tests
   gtest
   gtest_main
   kinect_xr_device
+  kinect_xr_runtime_lib
+  OpenXR::openxr_loader
 )
 
 target_include_directories(unit_tests
