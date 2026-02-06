@@ -2,56 +2,127 @@
 
 ## Overview
 
-C++ OpenXR runtime layered on libfreenect for Kinect 1 hardware access. The architecture separates hardware abstraction from OpenXR API implementation, enabling clean testing and future extensibility.
+C++ OpenXR runtime and WebSocket bridge layered on libfreenect for Kinect 1 hardware access. The architecture provides two parallel paths to Kinect depth data: an OpenXR runtime for native XR applications and a WebSocket bridge for browser-based applications.
+
+## Dual-Path Strategy
+
+Kinect XR provides **two sibling paths** to the same underlying KinectDevice:
+
+```
+                        ┌─────────────────────────────────┐
+                        │         KinectDevice            │
+                        │   (Device Abstraction Layer)    │
+                        └─────────────┬───────────────────┘
+                                      │
+                    ┌─────────────────┴─────────────────┐
+                    │                                   │
+           ┌────────▼────────┐               ┌─────────▼─────────┐
+           │  OpenXR Runtime │               │  WebSocket Bridge │
+           │   (Phase 2+)    │               │    (Complete)     │
+           └────────┬────────┘               └─────────┬─────────┘
+                    │                                   │
+           ┌────────▼────────┐               ┌─────────▼─────────┐
+           │ Native XR Apps  │               │  Browser Apps     │
+           │ Unity, Unreal   │               │  P5.js, Three.js  │
+           └─────────────────┘               └───────────────────┘
+```
+
+### Why Two Paths?
+
+**Chrome macOS WebXR Limitation:** Chrome's WebXR implementation is architecturally bound to Direct3D 11 on Windows. It requires:
+- `XR_EXT_win32_appcontainer_compatible` extension
+- D3D11 graphics backend
+- Windows-specific security model
+
+There is **no Metal binding** and no path to one. This is not a missing feature but an architectural decision in Chromium. macOS browsers will never discover local OpenXR runtimes for WebXR sessions.
+
+### Decision Tree
+
+```
+Application Type?
+├── Native XR (Unity/Unreal/custom)
+│   └── Use OpenXR Runtime (Phase 2+)
+│       - Standard OpenXR API
+│       - Runtime registration via XR_RUNTIME_JSON
+│       - Depth extension: XR_KHR_composition_layer_depth
+│
+└── Browser-based (P5.js/Three.js/web)
+    └── Use WebSocket Bridge
+        - Connect to ws://localhost:8765/kinect
+        - Use KinectClient.js library
+        - 30Hz RGB + depth streaming
+```
+
+### Bridge is Permanent, Not Temporary
+
+The WebSocket bridge is a **first-class citizen**, not a workaround or stepping stone:
+
+| Aspect | OpenXR Runtime | WebSocket Bridge |
+|--------|----------------|------------------|
+| Consumer | Native applications | Browser applications |
+| Status | In development (Phase 2) | Complete |
+| Purpose | XR ecosystem integration | Creative coding, web apps |
+| Relationship | Sibling | Sibling |
+
+Both paths consume the same KinectDevice layer. Neither depends on the other.
 
 ## System Context
 
 ```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                             Applications                                     │
+│                                                                              │
+│    Native Path                              Browser Path                     │
+│    ──────────                               ────────────                     │
+│  ┌──────────────┐  ┌──────────────┐      ┌──────────────┐  ┌──────────────┐ │
+│  │ Native OpenXR │  │ Unity/Unreal │      │   P5.js      │  │  Three.js    │ │
+│  │ Applications  │  │ (OpenXR)     │      │   Sketches   │  │  WebXR Apps  │ │
+│  └──────┬───────┘  └──────┬───────┘      └──────┬───────┘  └──────┬───────┘ │
+└─────────┼─────────────────┼─────────────────────┼─────────────────┼─────────┘
+          │                 │                     │                 │
+          └────────┬────────┘                     └────────┬────────┘
+                   │                                       │
+                   ▼                                       ▼
+┌─────────────────────────────────┐      ┌─────────────────────────────────────┐
+│      OpenXR Runtime (Phase 2+)  │      │     WebSocket Bridge (COMPLETE)     │
+│  ┌───────────────────────────┐  │      │  ┌─────────────────────────────────┐│
+│  │  OpenXR API Layer         │  │      │  │  WebSocket Server               ││
+│  │  - Instance/Session mgmt  │  │      │  │  - ws://localhost:8765/kinect   ││
+│  │  - Swapchain handling     │  │      │  │  - JSON control protocol        ││
+│  │  - Depth extension        │  │      │  │  - Binary frame streaming       ││
+│  └───────────────────────────┘  │      │  └─────────────────────────────────┘│
+│  ┌───────────────────────────┐  │      │  ┌─────────────────────────────────┐│
+│  │  Data Transformation      │  │      │  │  KinectClient.js (browser)      ││
+│  │  - Depth format conv.     │  │      │  │  - Frame parsing                ││
+│  │  - Coordinate mapping     │  │      │  │  - Stream subscription          ││
+│  └───────────────────────────┘  │      │  └─────────────────────────────────┘│
+└────────────────┬────────────────┘      └──────────────────┬──────────────────┘
+                 │                                          │
+                 │      BOTH PATHS CONSUME SAME DEVICE      │
+                 │                                          │
+                 └─────────────────┬────────────────────────┘
+                                   ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                      Applications                                │
-│  ┌──────────────┐  ┌──────────────┐  ┌────────────────────────┐ │
-│  │ Native OpenXR │  │ Unity/Unreal │  │ WebSocket Bridge      │ │
-│  │ Applications  │  │ (OpenXR)     │  │ (Future - WebXR)      │ │
-│  └──────┬───────┘  └──────┬───────┘  └──────────┬─────────────┘ │
-└─────────┼─────────────────┼─────────────────────┼───────────────┘
-          │                 │                     │
-          └─────────────────┼─────────────────────┘
-                            ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    Kinect XR Runtime                            │
+│          Device Abstraction Layer (Phase 1 - COMPLETE)          │
 │  ┌────────────────────────────────────────────────────────────┐ │
-│  │  OpenXR API Layer (Phase 2+)                               │ │
-│  │  - Instance/Session management                             │ │
-│  │  - Swapchain handling                                      │ │
-│  │  - Extension support (XR_KHR_composition_layer_depth)      │ │
-│  └────────────────────────────────────────────────────────────┘ │
-│                            │                                    │
-│  ┌────────────────────────────────────────────────────────────┐ │
-│  │  Data Transformation Pipeline (Phase 4)                    │ │
-│  │  - Depth format conversion (11-bit to OpenXR)              │ │
-│  │  - Coordinate system mapping                               │ │
-│  │  - Frame synchronization                                   │ │
-│  └────────────────────────────────────────────────────────────┘ │
-│                            │                                    │
-│  ┌────────────────────────────────────────────────────────────┐ │
-│  │  Device Abstraction Layer (Phase 1 COMPLETE)               │ │
-│  │  - KinectDevice class (initialization, cleanup)            │ │
+│  │  KinectDevice class                                        │ │
+│  │  - Initialization and cleanup (RAII)                       │ │
 │  │  - Stream management (start/stop, callbacks)               │ │
 │  │  - Configuration handling                                  │ │
 │  └────────────────────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────────────┘
-                            │
-                            ▼
+                                   │
+                                   ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                      libfreenect                                │
+│                         libfreenect                             │
 │  - USB isochronous transfer                                     │
 │  - Raw depth/RGB frame capture                                  │
 │  - Motor/LED control                                            │
 └─────────────────────────────────────────────────────────────────┘
-                            │
-                            ▼
+                                   │
+                                   ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                    Kinect Hardware                              │
+│                       Kinect Hardware                           │
 │  - Depth camera (IR projector + CMOS sensor)                    │
 │  - RGB camera                                                   │
 │  - Motorized tilt                                               │
@@ -338,21 +409,24 @@ kinect-xr/
 3. **Parallel pipelines** - Depth and RGB processing in separate threads
 4. **Metal compute shaders** - GPU-accelerated depth conversion (Phase 4)
 
-## WebXR Integration Architecture (macOS)
+## WebSocket Bridge Architecture (Complete)
 
-Due to Chrome's lack of macOS OpenXR support, WebXR integration uses a WebSocket bridge pattern rather than native OpenXR discovery:
+The WebSocket bridge provides browser access to Kinect depth/RGB streams. This is the **only viable path** for browser-based applications on macOS.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    Browser (Chrome/Firefox)                     │
+│                    Browser (Chrome/Firefox/Safari)              │
 │  ┌──────────────────────────────────────────────────────────┐   │
 │  │  P5.js / Three.js Application                            │   │
+│  │  - depth-field example (particle visualization)          │   │
+│  │  - silhouette example (depth masking)                    │   │
 │  └────────────────────────┬─────────────────────────────────┘   │
-│                           │ navigator.xr.requestSession()       │
+│                           │                                     │
 │  ┌────────────────────────▼─────────────────────────────────┐   │
-│  │  WebXR Polyfill (JavaScript)                             │   │
-│  │  - Custom XRDevice backend                               │   │
-│  │  - WebSocket client                                      │   │
+│  │  KinectClient.js                                         │   │
+│  │  - WebSocket connection management                       │   │
+│  │  - Frame parsing (RGB888, uint16 depth)                  │   │
+│  │  - Subscription control                                  │   │
 │  └────────────────────────┬─────────────────────────────────┘   │
 └───────────────────────────┼─────────────────────────────────────┘
                             │ ws://localhost:8765/kinect
@@ -362,10 +436,11 @@ Due to Chrome's lack of macOS OpenXR support, WebXR integration uses a WebSocket
 │  - Binary frames: 8-byte header + pixel data                    │
 │  - RGB: 640x480 RGB888 @ 30Hz (27.6 MB/s)                       │
 │  - Depth: 640x480 uint16 @ 30Hz (18.4 MB/s)                     │
+│  - Mock mode: --mock flag for development without hardware      │
 └───────────────────────────┬─────────────────────────────────────┘
                             │
 ┌───────────────────────────▼─────────────────────────────────────┐
-│  KinectDevice (Phase 1)                                         │
+│  KinectDevice (Phase 1 - Complete)                              │
 │  - 30 Hz RGB + Depth streaming                                  │
 │  - Thread-safe frame cache                                      │
 └─────────────────────────────────────────────────────────────────┘
@@ -373,7 +448,7 @@ Due to Chrome's lack of macOS OpenXR support, WebXR integration uses a WebSocket
 
 ### WebSocket Protocol
 
-The bridge uses a simple protocol (see `specs/008-WebSocketBridgeProtocol.md`):
+The bridge uses a simple protocol (see `specs/archive/008-WebSocketBridgeProtocol.md`):
 
 1. **Connection:** Client connects to `ws://localhost:8765/kinect`
 2. **Hello:** Server sends capabilities (resolution, frame rate, formats)
@@ -381,14 +456,20 @@ The bridge uses a simple protocol (see `specs/008-WebSocketBridgeProtocol.md`):
 4. **Frames:** Server sends binary frames with 8-byte header (frame ID + stream type)
 5. **Status:** Periodic updates on connection state and dropped frames
 
-### Why Not Native OpenXR?
+### Chrome macOS WebXR Limitation (Architectural)
 
-Chrome's WebXR implementation requires:
-- Windows or Android only
-- `XR_EXT_win32_appcontainer_compatible` extension
-- D3D11 graphics backend (not Metal)
+Chrome's WebXR implementation is **architecturally bound to Direct3D 11**:
 
-The WebSocket bridge enables WebXR on macOS while maintaining the native OpenXR runtime for Unity/Unreal/native applications.
+| Requirement | Chrome's Expectation | macOS Reality |
+|-------------|---------------------|---------------|
+| Graphics API | D3D11 | Metal only |
+| Extension | `XR_EXT_win32_appcontainer_compatible` | Not applicable |
+| Security model | Windows AppContainer | macOS sandboxing |
+| OpenXR discovery | Windows registry | XR_RUNTIME_JSON |
+
+This is not a missing feature or bug. Chromium's WebXR backend is designed around Windows security and graphics models. There is no Metal binding and no path to one.
+
+**Implication:** The WebSocket bridge is the permanent solution for browser-based Kinect XR on macOS, not a workaround waiting to be replaced.
 
 ## Security Considerations
 
@@ -423,3 +504,4 @@ Architecture is platform-agnostic except:
 |------|---------|---------|
 | 2025-04 | 0.1.0 | Initial architecture |
 | 2026-02 | 0.2.0 | Formalized during compliance restructure |
+| 2026-02-05 | 0.3.0 | Added Dual-Path Strategy section; documented Chrome macOS WebXR limitation; updated system context to show bridge and runtime as siblings |

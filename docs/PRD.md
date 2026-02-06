@@ -74,13 +74,30 @@ The original Kinect sensor (2010-2013) was groundbreaking depth-sensing hardware
 | Tilt angle control | -31 to +31 degrees | P2 |
 | Action bindings | Semantic actions for motor control | P2 |
 
-## Future Vision: WebXR Bridge
+## Delivered: WebSocket Bridge (Parallel Path)
 
-**Deferred to post-Phase 5.** Once OpenXR runtime works:
+**Status: Complete (2026-02-05)**
 
-1. **WebSocket Bridge** - Separate application streaming OpenXR data to browsers
-2. **WebXR Polyfill** - JavaScript adapter implementing WebXR Depth Sensing Module
-3. **P5.js Integration** - Example sketches using Kinect via WebXR
+The WebSocket bridge is a **permanent parallel path** to the OpenXR runtime, not a temporary workaround or stepping stone. Chrome will never support OpenXR on macOS due to architectural limitations (requires D3D11, no Metal binding). Browser-based XR applications must use the WebSocket bridge.
+
+| Component | Description | Status |
+|-----------|-------------|--------|
+| WebSocket Bridge Server | C++ server streaming RGB/depth over WebSocket | Complete |
+| KinectClient.js | Browser client library for connecting to bridge | Complete |
+| P5.js Examples | Creative coding examples (depth field, silhouette) | Complete |
+
+**Usage:**
+```bash
+# Start the bridge server
+./build/bin/kinect_ws_bridge
+
+# Or in mock mode (no hardware required)
+./build/bin/kinect_ws_bridge --mock
+```
+
+Browser applications connect via `ws://localhost:8765/kinect` and receive 30Hz depth/RGB streams.
+
+See `docs/ARCHITECTURE.md` for the dual-path strategy explaining when to use the bridge vs. the OpenXR runtime.
 
 ## Non-Goals
 
@@ -134,8 +151,9 @@ The original Kinect sensor (2010-2013) was groundbreaking depth-sensing hardware
 **No fixed deadlines** - Personal project with flexible timeline.
 
 Estimated effort (not calendar time):
-- Phase 1: ✅ **Complete** (2026-02-05)
-- Phase 2: Significant - OpenXR is complex
+- Phase 1: Device Integration - Complete (2026-02-05)
+- WebSocket Bridge: Complete (2026-02-05) - Parallel path for browser applications
+- Phase 2: OpenXR Runtime - Significant effort, enables native XR applications
 - Phases 3-5: Medium each
 - Phase 6: Optional, defer
 
@@ -145,3 +163,4 @@ Estimated effort (not calendar time):
 |------|--------|
 | 2025-04 | Initial project setup |
 | 2026-02 | PRD formalized during compliance restructure |
+| 2026-02-05 | WebSocket bridge moved from deferred to delivered; documented as permanent parallel path |
