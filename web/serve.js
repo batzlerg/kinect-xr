@@ -8,7 +8,7 @@ const port = 3000;
 
 Bun.serve({
   port,
-  fetch(request) {
+  async fetch(request) {
     const url = new URL(request.url);
     let path = url.pathname;
 
@@ -18,13 +18,37 @@ Bun.serve({
     }
 
     // Resolve file path
-    const filePath = `${import.meta.dir}${path}`;
+    let filePath = `${import.meta.dir}${path}`;
 
     try {
+      // Check if path is a directory
+      const stat = await Bun.file(filePath).exists();
+
+      if (stat) {
+        // If it's a directory path (ends with /), try index.html
+        if (path.endsWith('/')) {
+          filePath = `${import.meta.dir}${path}index.html`;
+        }
+      }
+
       const file = Bun.file(filePath);
-      return new Response(file);
-    } catch (e) {
+
+      // Check if file exists and is a regular file
+      if (await file.exists()) {
+        return new Response(file);
+      }
+
+      // If path doesn't end with / but is a directory, try adding index.html
+      const indexPath = `${filePath}/index.html`;
+      const indexFile = Bun.file(indexPath);
+      if (await indexFile.exists()) {
+        return new Response(indexFile);
+      }
+
       return new Response('Not found', { status: 404 });
+    } catch (e) {
+      console.error('Error serving file:', e);
+      return new Response('Server error', { status: 500 });
     }
   },
 });
