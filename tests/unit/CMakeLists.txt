@@ -6,6 +6,7 @@ add_executable(unit_tests
   session_management_test.cpp
   swapchain_test.cpp
   frame_loop_test.cpp
+  frame_cache_test.cpp
 )
 
 target_link_libraries(unit_tests

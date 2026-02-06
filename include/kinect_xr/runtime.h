@@ -87,6 +87,30 @@ struct FrameState {
         , frameCount(0) {}
 };
 
+// Frame cache for Kinect RGB + depth data
+// Thread-safe storage for latest frames from Kinect callbacks
+struct FrameCache {
+    std::mutex mutex;  // Protects all fields below
+
+    // RGB frame (640x480, RGB888 format)
+    std::vector<uint8_t> rgbData;  // 640 * 480 * 3 = 921600 bytes
+    uint32_t rgbTimestamp;
+    bool rgbValid;
+
+    // Depth frame (640x480, 11-bit values in uint16_t)
+    std::vector<uint16_t> depthData;  // 640 * 480 = 307200 uint16_t
+    uint32_t depthTimestamp;
+    bool depthValid;
+
+    FrameCache()
+        : rgbData(640 * 480 * 3)
+        , rgbTimestamp(0)
+        , rgbValid(false)
+        , depthData(640 * 480)
+        , depthTimestamp(0)
+        , depthValid(false) {}
+};
+
 // Session data
 struct SessionData {
     XrSession handle;
@@ -101,6 +125,9 @@ struct SessionData {
 
     // Frame state
     FrameState frameState;
+
+    // Kinect frame cache (latest RGB + depth from callbacks)
+    FrameCache frameCache;
 
     SessionData(XrSession h, XrInstance inst, XrSystemId sysId)
         : handle(h)

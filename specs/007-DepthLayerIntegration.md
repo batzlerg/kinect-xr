@@ -104,7 +104,7 @@ Implement XR_KHR_composition_layer_depth extension and integrate live Kinect RGB
   - Create R16Uint Metal textures
   - Unit tests for format validation
 
-- [ ] **M2: Frame Cache Structure** (unit tests)
+- [x] **M2: Frame Cache Structure** (unit tests)
   - Add FrameCache struct to SessionData
   - Mutex protection for thread safety
   - Cache RGB + depth frame buffers
@@ -183,7 +183,12 @@ Implement XR_KHR_composition_layer_depth extension and integrate live Kinect RGB
 - All 29 swapchain tests passing
 
 ### Milestone 2
-- (To be filled during implementation)
+- Added FrameCache struct with mutex-protected RGB + depth buffers
+- RGB: 640x480x3 uint8_t (921KB), depth: 640x480 uint16_t (614KB)
+- Each frame has valid flag and timestamp
+- Pre-allocated vectors in constructor (no runtime allocation)
+- 10 new unit tests covering basic ops, thread safety, data integrity
+- All tests passing (103 total unit tests)
 
 ### Milestone 3
 - (To be filled during implementation)
