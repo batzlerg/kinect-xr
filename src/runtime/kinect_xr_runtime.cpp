@@ -1019,13 +1019,56 @@ XrResult KinectXRRuntime::endFrame(XrSession session, const XrFrameEndInfo* fram
         return XR_ERROR_ENVIRONMENT_BLEND_MODE_UNSUPPORTED;
     }
 
-    // Process layers (for M7, just validate counts)
+    // Process layers
     if (frameEndInfo->layerCount > 0 && !frameEndInfo->layers) {
         return XR_ERROR_VALIDATION_FAILURE;
     }
 
-    // For M7, we don't process layers yet (that's for Spec 007)
-    // Just accept them and mark frame as complete
+    // Parse layers for depth info (XR_KHR_composition_layer_depth)
+    for (uint32_t i = 0; i < frameEndInfo->layerCount; ++i) {
+        const XrCompositionLayerBaseHeader* layerHeader = frameEndInfo->layers[i];
+        if (!layerHeader) {
+            continue;
+        }
+
+        // Check if this is a projection layer (the only layer type we support)
+        if (layerHeader->type == XR_TYPE_COMPOSITION_LAYER_PROJECTION) {
+            // Check for depth info in next chain
+            const void* next = layerHeader->next;
+            while (next) {
+                const XrCompositionLayerBaseHeader* nextHeader =
+                    static_cast<const XrCompositionLayerBaseHeader*>(next);
+
+                if (nextHeader->type == XR_TYPE_COMPOSITION_LAYER_DEPTH_INFO_KHR) {
+                    const XrCompositionLayerDepthInfoKHR* depthInfo =
+                        static_cast<const XrCompositionLayerDepthInfoKHR*>(next);
+
+                    // Validate depth swapchain exists and is correct format
+                    SwapchainData* depthSwapchain = getSwapchainData(depthInfo->subImage.swapchain);
+                    if (!depthSwapchain) {
+                        return XR_ERROR_HANDLE_INVALID;
+                    }
+
+                    // Depth swapchain must be R16Uint format
+                    if (depthSwapchain->format != 13) {
+                        return XR_ERROR_SWAPCHAIN_FORMAT_UNSUPPORTED;
+                    }
+
+                    // Depth and color dimensions should match (640x480)
+                    // Note: OpenXR allows different dimensions, but for Kinect they match
+                    if (depthSwapchain->width != 640 || depthSwapchain->height != 480) {
+                        return XR_ERROR_VALIDATION_FAILURE;
+                    }
+
+                    // Depth layer validated successfully
+                    // In a full implementation, we would process near/far planes
+                    // For Kinect XR, we just validate the structure
+                }
+
+                next = nextHeader->next;
+            }
+        }
+    }
 
     // Mark frame as complete
     sessionData->frameState.frameInProgress = false;

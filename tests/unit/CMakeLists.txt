@@ -8,6 +8,7 @@ add_executable(unit_tests
   frame_loop_test.cpp
   frame_cache_test.cpp
   texture_upload_test.cpp
+  depth_layer_test.cpp
 )
 
 target_link_libraries(unit_tests

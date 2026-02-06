@@ -129,7 +129,7 @@ Implement XR_KHR_composition_layer_depth extension and integrate live Kinect RGB
   - Integration test validates depth upload
   - Visual inspection of depth feed
 
-- [ ] **M6: Depth Layer Parsing** (unit tests)
+- [x] **M6: Depth Layer Parsing** (unit tests)
   - Parse XrCompositionLayerDepthInfoKHR in xrEndFrame
   - Validate depth swapchain format
   - Validate depth layer dimensions
@@ -213,7 +213,13 @@ Implement XR_KHR_composition_layer_depth extension and integrate live Kinect RGB
 - All 117 unit tests passing (103 → 117, +14 new)
 
 ### Milestone 6
-- (To be filled during implementation)
+- Implemented depth layer parsing in xrEndFrame
+- Walks next chain to find XR_TYPE_COMPOSITION_LAYER_DEPTH_INFO_KHR
+- Validates depth swapchain handle and format (R16Uint)
+- Validates depth dimensions (640x480 for Kinect)
+- Returns appropriate errors for invalid configurations
+- 5 new unit tests (with depth, without depth, invalid cases)
+- All 122 unit tests passing (117 → 122, +5 new)
 
 ### Milestone 7
 - (To be filled during implementation)
