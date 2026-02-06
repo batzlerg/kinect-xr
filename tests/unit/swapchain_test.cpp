@@ -64,3 +64,44 @@ TEST_F(SwapchainTest, GetSwapchainDataInvalidHandle) {
     SwapchainData* data = KinectXRRuntime::getInstance().getSwapchainData(fakeHandle);
     EXPECT_EQ(data, nullptr);
 }
+
+// M2 Tests: Format Enumeration
+
+TEST_F(SwapchainTest, EnumerateFormats_CountQuery) {
+    uint32_t formatCount = 0;
+    XrResult result = KinectXRRuntime::getInstance().enumerateSwapchainFormats(session_, 0, &formatCount, nullptr);
+    EXPECT_EQ(result, XR_SUCCESS);
+    EXPECT_EQ(formatCount, 1u);  // Only BGRA8Unorm
+}
+
+TEST_F(SwapchainTest, EnumerateFormats_GetFormats) {
+    uint32_t formatCount = 0;
+    XrResult result = KinectXRRuntime::getInstance().enumerateSwapchainFormats(session_, 0, &formatCount, nullptr);
+    ASSERT_EQ(result, XR_SUCCESS);
+    ASSERT_EQ(formatCount, 1u);
+
+    int64_t format = 0;
+    result = KinectXRRuntime::getInstance().enumerateSwapchainFormats(session_, 1, &formatCount, &format);
+    EXPECT_EQ(result, XR_SUCCESS);
+    EXPECT_EQ(formatCount, 1u);
+    EXPECT_EQ(format, 80);  // MTLPixelFormatBGRA8Unorm
+}
+
+TEST_F(SwapchainTest, EnumerateFormats_InvalidSession) {
+    XrSession fakeSession = reinterpret_cast<XrSession>(0x99999);
+    uint32_t formatCount = 0;
+    XrResult result = KinectXRRuntime::getInstance().enumerateSwapchainFormats(fakeSession, 0, &formatCount, nullptr);
+    EXPECT_EQ(result, XR_ERROR_HANDLE_INVALID);
+}
+
+TEST_F(SwapchainTest, EnumerateFormats_NullOutput) {
+    XrResult result = KinectXRRuntime::getInstance().enumerateSwapchainFormats(session_, 0, nullptr, nullptr);
+    EXPECT_EQ(result, XR_ERROR_VALIDATION_FAILURE);
+}
+
+TEST_F(SwapchainTest, EnumerateFormats_NullFormatsWithCapacity) {
+    uint32_t formatCount = 0;
+    // Providing capacity > 0 but formats=nullptr should fail
+    XrResult result = KinectXRRuntime::getInstance().enumerateSwapchainFormats(session_, 1, &formatCount, nullptr);
+    EXPECT_EQ(result, XR_ERROR_VALIDATION_FAILURE);
+}

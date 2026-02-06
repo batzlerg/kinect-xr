@@ -535,8 +535,39 @@ SwapchainData* KinectXRRuntime::getSwapchainData(XrSwapchain swapchain) {
 }
 
 XrResult KinectXRRuntime::enumerateSwapchainFormats(XrSession session, uint32_t formatCapacityInput, uint32_t* formatCountOutput, int64_t* formats) {
-    // Stub for M2
-    return XR_ERROR_RUNTIME_FAILURE;
+    if (!formatCountOutput) {
+        return XR_ERROR_VALIDATION_FAILURE;
+    }
+
+    // Validate session
+    if (!isValidSession(session)) {
+        return XR_ERROR_HANDLE_INVALID;
+    }
+
+    // We only support BGRA8Unorm (Metal's native format on macOS)
+    // MTLPixelFormatBGRA8Unorm = 80
+    static const int64_t supportedFormats[] = {80};  // MTLPixelFormatBGRA8Unorm
+    static const uint32_t formatCount = 1;
+
+    // Two-call idiom
+    if (formatCapacityInput == 0) {
+        *formatCountOutput = formatCount;
+        return XR_SUCCESS;
+    }
+
+    if (formatCapacityInput < formatCount) {
+        *formatCountOutput = formatCount;
+        return XR_ERROR_SIZE_INSUFFICIENT;
+    }
+
+    if (!formats) {
+        return XR_ERROR_VALIDATION_FAILURE;
+    }
+
+    formats[0] = supportedFormats[0];
+    *formatCountOutput = formatCount;
+
+    return XR_SUCCESS;
 }
 
 XrResult KinectXRRuntime::createSwapchain(XrSession session, const XrSwapchainCreateInfo* createInfo, XrSwapchain* swapchain) {
