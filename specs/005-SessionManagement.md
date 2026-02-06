@@ -106,8 +106,8 @@ Runtime supports full session lifecycle. Applications can create sessions with M
   - Add to xrGetInstanceProcAddr
   - Validation: Unit tests pass
 
-- [ ] **M2: View configuration enumeration**
-  - Implement xrEnumerateViewConfigurationTypes
+- [x] **M2: View configuration enumeration**
+  - Implement xrEnumerateViewConfigurations
   - Implement xrGetViewConfigurationProperties
   - Implement xrEnumerateViewConfigurationViews
   - Validation: Returns PRIMARY_MONO, 640x480 view
@@ -178,7 +178,11 @@ Runtime supports full session lifecycle. Applications can create sessions with M
 - All tests passing - system enumeration working correctly
 
 ### Milestone 2
-- (To be filled during implementation)
+- Implemented xrEnumerateViewConfigurations - returns PRIMARY_MONO only
+- Implemented xrGetViewConfigurationProperties - fixed FOV, mono view
+- Implemented xrEnumerateViewConfigurationViews - returns single view with 640x480 specs
+- Added 4 unit tests for view configuration APIs
+- All tests passing - view enumeration working correctly
 
 ### Milestone 3
 - (To be filled during implementation)

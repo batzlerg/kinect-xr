@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 #include <openxr/openxr.h>
 #include <cstdlib>
+#include <vector>
 
 class SystemManagementTest : public ::testing::Test {
 protected:
@@ -137,4 +138,81 @@ TEST_F(SystemManagementTest, GetSystemIdempotent) {
     ASSERT_EQ(result, XR_SUCCESS);
 
     EXPECT_EQ(systemId1, systemId2);
+}
+
+// View Configuration Tests
+
+TEST_F(SystemManagementTest, EnumerateViewConfigurationTypes) {
+    // Get system first
+    XrSystemGetInfo getInfo{XR_TYPE_SYSTEM_GET_INFO};
+    getInfo.formFactor = XR_FORM_FACTOR_HEAD_MOUNTED_DISPLAY;
+    XrSystemId systemId = XR_NULL_SYSTEM_ID;
+    xrGetSystem(instance_, &getInfo, &systemId);
+
+    // Get count
+    uint32_t viewConfigCount = 0;
+    XrResult result = xrEnumerateViewConfigurations(instance_, systemId, 0, &viewConfigCount, nullptr);
+    ASSERT_EQ(result, XR_SUCCESS);
+    EXPECT_EQ(viewConfigCount, 1u);
+
+    // Get types
+    std::vector<XrViewConfigurationType> viewConfigTypes(viewConfigCount);
+    result = xrEnumerateViewConfigurations(instance_, systemId, viewConfigCount, &viewConfigCount, viewConfigTypes.data());
+    ASSERT_EQ(result, XR_SUCCESS);
+    EXPECT_EQ(viewConfigTypes[0], XR_VIEW_CONFIGURATION_TYPE_PRIMARY_MONO);
+}
+
+TEST_F(SystemManagementTest, GetViewConfigurationProperties) {
+    // Get system first
+    XrSystemGetInfo getInfo{XR_TYPE_SYSTEM_GET_INFO};
+    getInfo.formFactor = XR_FORM_FACTOR_HEAD_MOUNTED_DISPLAY;
+    XrSystemId systemId = XR_NULL_SYSTEM_ID;
+    xrGetSystem(instance_, &getInfo, &systemId);
+
+    XrViewConfigurationProperties props{XR_TYPE_VIEW_CONFIGURATION_PROPERTIES};
+    XrResult result = xrGetViewConfigurationProperties(instance_, systemId, XR_VIEW_CONFIGURATION_TYPE_PRIMARY_MONO, &props);
+
+    ASSERT_EQ(result, XR_SUCCESS);
+    EXPECT_EQ(props.viewConfigurationType, XR_VIEW_CONFIGURATION_TYPE_PRIMARY_MONO);
+    EXPECT_EQ(props.fovMutable, XR_FALSE);
+}
+
+TEST_F(SystemManagementTest, GetViewConfigurationPropertiesUnsupportedType) {
+    // Get system first
+    XrSystemGetInfo getInfo{XR_TYPE_SYSTEM_GET_INFO};
+    getInfo.formFactor = XR_FORM_FACTOR_HEAD_MOUNTED_DISPLAY;
+    XrSystemId systemId = XR_NULL_SYSTEM_ID;
+    xrGetSystem(instance_, &getInfo, &systemId);
+
+    XrViewConfigurationProperties props{XR_TYPE_VIEW_CONFIGURATION_PROPERTIES};
+    XrResult result = xrGetViewConfigurationProperties(instance_, systemId, XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO, &props);
+
+    EXPECT_EQ(result, XR_ERROR_VIEW_CONFIGURATION_TYPE_UNSUPPORTED);
+}
+
+TEST_F(SystemManagementTest, EnumerateViewConfigurationViews) {
+    // Get system first
+    XrSystemGetInfo getInfo{XR_TYPE_SYSTEM_GET_INFO};
+    getInfo.formFactor = XR_FORM_FACTOR_HEAD_MOUNTED_DISPLAY;
+    XrSystemId systemId = XR_NULL_SYSTEM_ID;
+    xrGetSystem(instance_, &getInfo, &systemId);
+
+    // Get count
+    uint32_t viewCount = 0;
+    XrResult result = xrEnumerateViewConfigurationViews(instance_, systemId, XR_VIEW_CONFIGURATION_TYPE_PRIMARY_MONO, 0, &viewCount, nullptr);
+    ASSERT_EQ(result, XR_SUCCESS);
+    EXPECT_EQ(viewCount, 1u);
+
+    // Get views
+    std::vector<XrViewConfigurationView> views(viewCount, {XR_TYPE_VIEW_CONFIGURATION_VIEW});
+    result = xrEnumerateViewConfigurationViews(instance_, systemId, XR_VIEW_CONFIGURATION_TYPE_PRIMARY_MONO, viewCount, &viewCount, views.data());
+    ASSERT_EQ(result, XR_SUCCESS);
+
+    // Verify Kinect 1 RGB specs
+    EXPECT_EQ(views[0].recommendedImageRectWidth, 640u);
+    EXPECT_EQ(views[0].maxImageRectWidth, 640u);
+    EXPECT_EQ(views[0].recommendedImageRectHeight, 480u);
+    EXPECT_EQ(views[0].maxImageRectHeight, 480u);
+    EXPECT_EQ(views[0].recommendedSwapchainSampleCount, 1u);
+    EXPECT_EQ(views[0].maxSwapchainSampleCount, 1u);
 }

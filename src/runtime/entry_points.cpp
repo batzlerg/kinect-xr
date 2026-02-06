@@ -38,6 +38,27 @@ XRAPI_ATTR XrResult XRAPI_CALL xrGetSystemProperties(
     XrSystemId systemId,
     XrSystemProperties* properties);
 
+XRAPI_ATTR XrResult XRAPI_CALL xrEnumerateViewConfigurations(
+    XrInstance instance,
+    XrSystemId systemId,
+    uint32_t viewConfigurationTypeCapacityInput,
+    uint32_t* viewConfigurationTypeCountOutput,
+    XrViewConfigurationType* viewConfigurationTypes);
+
+XRAPI_ATTR XrResult XRAPI_CALL xrGetViewConfigurationProperties(
+    XrInstance instance,
+    XrSystemId systemId,
+    XrViewConfigurationType viewConfigurationType,
+    XrViewConfigurationProperties* configurationProperties);
+
+XRAPI_ATTR XrResult XRAPI_CALL xrEnumerateViewConfigurationViews(
+    XrInstance instance,
+    XrSystemId systemId,
+    XrViewConfigurationType viewConfigurationType,
+    uint32_t viewCapacityInput,
+    uint32_t* viewCountOutput,
+    XrViewConfigurationView* views);
+
 // Main entry point for the runtime
 XRAPI_ATTR XrResult XRAPI_CALL xrGetInstanceProcAddr(
     XrInstance instance,
@@ -93,6 +114,18 @@ XRAPI_ATTR XrResult XRAPI_CALL xrGetInstanceProcAddr(
     }
     if (strcmp(name, "xrGetSystemProperties") == 0) {
         *function = reinterpret_cast<PFN_xrVoidFunction>(xrGetSystemProperties);
+        return XR_SUCCESS;
+    }
+    if (strcmp(name, "xrEnumerateViewConfigurations") == 0) {
+        *function = reinterpret_cast<PFN_xrVoidFunction>(xrEnumerateViewConfigurations);
+        return XR_SUCCESS;
+    }
+    if (strcmp(name, "xrGetViewConfigurationProperties") == 0) {
+        *function = reinterpret_cast<PFN_xrVoidFunction>(xrGetViewConfigurationProperties);
+        return XR_SUCCESS;
+    }
+    if (strcmp(name, "xrEnumerateViewConfigurationViews") == 0) {
+        *function = reinterpret_cast<PFN_xrVoidFunction>(xrEnumerateViewConfigurationViews);
         return XR_SUCCESS;
     }
 
@@ -266,6 +299,147 @@ XRAPI_ATTR XrResult XRAPI_CALL xrGetSystemProperties(
     XrSystemProperties* properties) {
 
     return kinect_xr::KinectXRRuntime::getInstance().getSystemProperties(instance, systemId, properties);
+}
+
+// View configuration functions
+
+XRAPI_ATTR XrResult XRAPI_CALL xrEnumerateViewConfigurations(
+    XrInstance instance,
+    XrSystemId systemId,
+    uint32_t viewConfigurationTypeCapacityInput,
+    uint32_t* viewConfigurationTypeCountOutput,
+    XrViewConfigurationType* viewConfigurationTypes) {
+
+    if (!viewConfigurationTypeCountOutput) {
+        return XR_ERROR_VALIDATION_FAILURE;
+    }
+
+    // Validate instance and system
+    if (!kinect_xr::KinectXRRuntime::getInstance().isValidInstance(instance)) {
+        return XR_ERROR_HANDLE_INVALID;
+    }
+
+    if (!kinect_xr::KinectXRRuntime::getInstance().isValidSystem(instance, systemId)) {
+        return XR_ERROR_SYSTEM_INVALID;
+    }
+
+    // We only support PRIMARY_MONO view configuration
+    static const uint32_t viewConfigCount = 1;
+
+    // Two-call idiom
+    if (viewConfigurationTypeCapacityInput == 0) {
+        *viewConfigurationTypeCountOutput = viewConfigCount;
+        return XR_SUCCESS;
+    }
+
+    if (viewConfigurationTypeCapacityInput < viewConfigCount) {
+        *viewConfigurationTypeCountOutput = viewConfigCount;
+        return XR_ERROR_SIZE_INSUFFICIENT;
+    }
+
+    if (!viewConfigurationTypes) {
+        return XR_ERROR_VALIDATION_FAILURE;
+    }
+
+    viewConfigurationTypes[0] = XR_VIEW_CONFIGURATION_TYPE_PRIMARY_MONO;
+    *viewConfigurationTypeCountOutput = viewConfigCount;
+
+    return XR_SUCCESS;
+}
+
+XRAPI_ATTR XrResult XRAPI_CALL xrGetViewConfigurationProperties(
+    XrInstance instance,
+    XrSystemId systemId,
+    XrViewConfigurationType viewConfigurationType,
+    XrViewConfigurationProperties* configurationProperties) {
+
+    if (!configurationProperties) {
+        return XR_ERROR_VALIDATION_FAILURE;
+    }
+
+    if (configurationProperties->type != XR_TYPE_VIEW_CONFIGURATION_PROPERTIES) {
+        return XR_ERROR_VALIDATION_FAILURE;
+    }
+
+    // Validate instance and system
+    if (!kinect_xr::KinectXRRuntime::getInstance().isValidInstance(instance)) {
+        return XR_ERROR_HANDLE_INVALID;
+    }
+
+    if (!kinect_xr::KinectXRRuntime::getInstance().isValidSystem(instance, systemId)) {
+        return XR_ERROR_SYSTEM_INVALID;
+    }
+
+    // Only support PRIMARY_MONO
+    if (viewConfigurationType != XR_VIEW_CONFIGURATION_TYPE_PRIMARY_MONO) {
+        return XR_ERROR_VIEW_CONFIGURATION_TYPE_UNSUPPORTED;
+    }
+
+    configurationProperties->viewConfigurationType = XR_VIEW_CONFIGURATION_TYPE_PRIMARY_MONO;
+    configurationProperties->fovMutable = XR_FALSE;  // Fixed field of view
+
+    return XR_SUCCESS;
+}
+
+XRAPI_ATTR XrResult XRAPI_CALL xrEnumerateViewConfigurationViews(
+    XrInstance instance,
+    XrSystemId systemId,
+    XrViewConfigurationType viewConfigurationType,
+    uint32_t viewCapacityInput,
+    uint32_t* viewCountOutput,
+    XrViewConfigurationView* views) {
+
+    if (!viewCountOutput) {
+        return XR_ERROR_VALIDATION_FAILURE;
+    }
+
+    // Validate instance and system
+    if (!kinect_xr::KinectXRRuntime::getInstance().isValidInstance(instance)) {
+        return XR_ERROR_HANDLE_INVALID;
+    }
+
+    if (!kinect_xr::KinectXRRuntime::getInstance().isValidSystem(instance, systemId)) {
+        return XR_ERROR_SYSTEM_INVALID;
+    }
+
+    // Only support PRIMARY_MONO
+    if (viewConfigurationType != XR_VIEW_CONFIGURATION_TYPE_PRIMARY_MONO) {
+        return XR_ERROR_VIEW_CONFIGURATION_TYPE_UNSUPPORTED;
+    }
+
+    // PRIMARY_MONO has exactly 1 view
+    static const uint32_t viewCount = 1;
+
+    // Two-call idiom
+    if (viewCapacityInput == 0) {
+        *viewCountOutput = viewCount;
+        return XR_SUCCESS;
+    }
+
+    if (viewCapacityInput < viewCount) {
+        *viewCountOutput = viewCount;
+        return XR_ERROR_SIZE_INSUFFICIENT;
+    }
+
+    if (!views) {
+        return XR_ERROR_VALIDATION_FAILURE;
+    }
+
+    // Validate structure type
+    if (views[0].type != XR_TYPE_VIEW_CONFIGURATION_VIEW) {
+        return XR_ERROR_VALIDATION_FAILURE;
+    }
+
+    // Fill in view configuration - Kinect 1 RGB camera specs
+    views[0].recommendedImageRectWidth = 640;
+    views[0].maxImageRectWidth = 640;
+    views[0].recommendedImageRectHeight = 480;
+    views[0].maxImageRectHeight = 480;
+    views[0].recommendedSwapchainSampleCount = 1;
+    views[0].maxSwapchainSampleCount = 1;
+
+    *viewCountOutput = viewCount;
+    return XR_SUCCESS;
 }
 
 } // extern "C"
