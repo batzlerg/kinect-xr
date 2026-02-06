@@ -112,7 +112,7 @@ Runtime supports full session lifecycle. Applications can create sessions with M
   - Implement xrEnumerateViewConfigurationViews
   - Validation: Returns PRIMARY_MONO, 640x480 view
 
-- [ ] **M3: Session creation and destruction**
+- [x] **M3: Session creation and destruction**
   - Add SessionData struct
   - Implement xrCreateSession (validate Metal binding)
   - Implement xrDestroySession
@@ -185,7 +185,13 @@ Runtime supports full session lifecycle. Applications can create sessions with M
 - All tests passing - view enumeration working correctly
 
 ### Milestone 3
-- (To be filled during implementation)
+- Added SessionData struct with state machine enum (IDLE, READY, SYNCHRONIZED, VISIBLE, FOCUSED, STOPPING)
+- Implemented xrCreateSession - validates Metal binding in next chain, enforces one session per instance limit
+- Implemented xrDestroySession - validates session is in IDLE/STOPPING state
+- Added XR_KHR_metal_enable to supported extensions list
+- Defined XR_USE_GRAPHICS_API_METAL compile flag for Metal binding support
+- Created session_management_test.cpp with 8 unit tests
+- All tests passing - session lifecycle working correctly
 
 ### Milestone 4
 - (To be filled during implementation)

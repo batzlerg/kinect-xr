@@ -1,4 +1,5 @@
 #include "kinect_xr/runtime.h"
+#include <openxr/openxr_platform.h>
 #include <cstring>
 
 namespace kinect_xr {
@@ -26,8 +27,9 @@ XrResult KinectXRRuntime::createInstance(const XrInstanceCreateInfo* createInfo,
     // Check requested extensions
     for (uint32_t i = 0; i < createInfo->enabledExtensionCount; ++i) {
         const char* extName = createInfo->enabledExtensionNames[i];
-        // Currently we only support XR_KHR_composition_layer_depth
-        if (strcmp(extName, "XR_KHR_composition_layer_depth") != 0) {
+        // Supported extensions
+        if (strcmp(extName, "XR_KHR_composition_layer_depth") != 0 &&
+            strcmp(extName, "XR_KHR_metal_enable") != 0) {
             return XR_ERROR_EXTENSION_NOT_PRESENT;
         }
     }
@@ -158,6 +160,104 @@ bool KinectXRRuntime::isValidSystem(XrInstance instance, XrSystemId systemId) co
     }
 
     return it->second->system && it->second->system->systemId == systemId;
+}
+
+XrResult KinectXRRuntime::createSession(XrInstance instance, const XrSessionCreateInfo* createInfo, XrSession* session) {
+    if (!createInfo || !session) {
+        return XR_ERROR_VALIDATION_FAILURE;
+    }
+
+    if (createInfo->type != XR_TYPE_SESSION_CREATE_INFO) {
+        return XR_ERROR_VALIDATION_FAILURE;
+    }
+
+    // Validate instance and system
+    {
+        std::lock_guard<std::mutex> lock(instanceMutex_);
+        auto it = instances_.find(instance);
+        if (it == instances_.end()) {
+            return XR_ERROR_HANDLE_INVALID;
+        }
+
+        if (!it->second->system || it->second->system->systemId != createInfo->systemId) {
+            return XR_ERROR_SYSTEM_INVALID;
+        }
+    }
+
+    // Validate graphics binding - must have Metal binding in next chain
+    const XrGraphicsBindingMetalKHR* metalBinding = nullptr;
+    const void* nextPtr = createInfo->next;
+    while (nextPtr != nullptr) {
+        const XrBaseInStructure* base = reinterpret_cast<const XrBaseInStructure*>(nextPtr);
+        if (base->type == XR_TYPE_GRAPHICS_BINDING_METAL_KHR) {
+            metalBinding = reinterpret_cast<const XrGraphicsBindingMetalKHR*>(nextPtr);
+            break;
+        }
+        nextPtr = base->next;
+    }
+
+    if (!metalBinding) {
+        return XR_ERROR_GRAPHICS_DEVICE_INVALID;
+    }
+
+    if (!metalBinding->commandQueue) {
+        return XR_ERROR_GRAPHICS_DEVICE_INVALID;
+    }
+
+    // Only allow one session per instance
+    {
+        std::lock_guard<std::mutex> lock(sessionMutex_);
+        for (const auto& [handle, sessionData] : sessions_) {
+            if (sessionData->instance == instance) {
+                return XR_ERROR_LIMIT_REACHED;
+            }
+        }
+    }
+
+    // Create session handle
+    std::lock_guard<std::mutex> lock(sessionMutex_);
+    XrSession handle = reinterpret_cast<XrSession>(nextSessionId_++);
+
+    auto sessionData = std::make_unique<SessionData>(handle, instance, createInfo->systemId);
+    sessionData->metalCommandQueue = metalBinding->commandQueue;
+
+    sessions_[handle] = std::move(sessionData);
+    *session = handle;
+
+    return XR_SUCCESS;
+}
+
+XrResult KinectXRRuntime::destroySession(XrSession session) {
+    std::lock_guard<std::mutex> lock(sessionMutex_);
+
+    auto it = sessions_.find(session);
+    if (it == sessions_.end()) {
+        return XR_ERROR_HANDLE_INVALID;
+    }
+
+    // Session must be in IDLE or STOPPING state to destroy
+    if (it->second->state != SessionState::IDLE && it->second->state != SessionState::STOPPING) {
+        return XR_ERROR_SESSION_RUNNING;
+    }
+
+    sessions_.erase(it);
+    return XR_SUCCESS;
+}
+
+bool KinectXRRuntime::isValidSession(XrSession session) const {
+    std::lock_guard<std::mutex> lock(sessionMutex_);
+    return sessions_.find(session) != sessions_.end();
+}
+
+SessionData* KinectXRRuntime::getSessionData(XrSession session) {
+    std::lock_guard<std::mutex> lock(sessionMutex_);
+
+    auto it = sessions_.find(session);
+    if (it == sessions_.end()) {
+        return nullptr;
+    }
+
+    return it->second.get();
 }
 
 } // namespace kinect_xr

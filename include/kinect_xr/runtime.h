@@ -24,6 +24,34 @@ struct SystemData {
         , formFactor(XR_FORM_FACTOR_HEAD_MOUNTED_DISPLAY) {}
 };
 
+// Session state
+enum class SessionState {
+    IDLE,
+    READY,
+    SYNCHRONIZED,
+    VISIBLE,
+    FOCUSED,
+    STOPPING
+};
+
+// Session data
+struct SessionData {
+    XrSession handle;
+    XrInstance instance;  // Parent instance
+    XrSystemId systemId;  // Associated system
+    SessionState state;
+
+    // Metal graphics binding (stored as void* to avoid Metal headers in this header)
+    void* metalCommandQueue;
+
+    SessionData(XrSession h, XrInstance inst, XrSystemId sysId)
+        : handle(h)
+        , instance(inst)
+        , systemId(sysId)
+        , state(SessionState::IDLE)
+        , metalCommandQueue(nullptr) {}
+};
+
 // Instance data
 struct InstanceData {
     XrInstance handle;
@@ -64,6 +92,14 @@ public:
     // System validation
     bool isValidSystem(XrInstance instance, XrSystemId systemId) const;
 
+    // Session management
+    XrResult createSession(XrInstance instance, const XrSessionCreateInfo* createInfo, XrSession* session);
+    XrResult destroySession(XrSession session);
+
+    // Session validation
+    bool isValidSession(XrSession session) const;
+    SessionData* getSessionData(XrSession session);
+
     // Delete copy and move constructors/operators
     KinectXRRuntime(const KinectXRRuntime&) = delete;
     KinectXRRuntime& operator=(const KinectXRRuntime&) = delete;
@@ -78,6 +114,10 @@ private:
     std::unordered_map<XrInstance, std::unique_ptr<InstanceData>> instances_;
     uint64_t nextInstanceId_ = 1;
     uint64_t nextSystemId_ = 1;
+
+    mutable std::mutex sessionMutex_;
+    std::unordered_map<XrSession, std::unique_ptr<SessionData>> sessions_;
+    uint64_t nextSessionId_ = 1;
 };
 
 } // namespace kinect_xr

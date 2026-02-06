@@ -55,6 +55,11 @@ target_include_directories(kinect_xr_runtime_lib
   ${CMAKE_BINARY_DIR}/_deps/openxr-build/include
 )
 
+target_compile_definitions(kinect_xr_runtime_lib
+  PRIVATE
+  XR_USE_GRAPHICS_API_METAL
+)
+
 target_link_libraries(kinect_xr_runtime_lib
   PRIVATE
   kinect_xr_device

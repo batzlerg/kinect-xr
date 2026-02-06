@@ -59,6 +59,14 @@ XRAPI_ATTR XrResult XRAPI_CALL xrEnumerateViewConfigurationViews(
     uint32_t* viewCountOutput,
     XrViewConfigurationView* views);
 
+XRAPI_ATTR XrResult XRAPI_CALL xrCreateSession(
+    XrInstance instance,
+    const XrSessionCreateInfo* createInfo,
+    XrSession* session);
+
+XRAPI_ATTR XrResult XRAPI_CALL xrDestroySession(
+    XrSession session);
+
 // Main entry point for the runtime
 XRAPI_ATTR XrResult XRAPI_CALL xrGetInstanceProcAddr(
     XrInstance instance,
@@ -128,6 +136,14 @@ XRAPI_ATTR XrResult XRAPI_CALL xrGetInstanceProcAddr(
         *function = reinterpret_cast<PFN_xrVoidFunction>(xrEnumerateViewConfigurationViews);
         return XR_SUCCESS;
     }
+    if (strcmp(name, "xrCreateSession") == 0) {
+        *function = reinterpret_cast<PFN_xrVoidFunction>(xrCreateSession);
+        return XR_SUCCESS;
+    }
+    if (strcmp(name, "xrDestroySession") == 0) {
+        *function = reinterpret_cast<PFN_xrVoidFunction>(xrDestroySession);
+        return XR_SUCCESS;
+    }
 
     // Function not supported
     *function = nullptr;
@@ -193,7 +209,8 @@ XRAPI_ATTR XrResult XRAPI_CALL xrEnumerateInstanceExtensionProperties(
 
     // List of supported extensions
     static const char* supportedExtensions[] = {
-        "XR_KHR_composition_layer_depth"
+        "XR_KHR_composition_layer_depth",
+        "XR_KHR_metal_enable"
     };
     static const uint32_t extensionCount = sizeof(supportedExtensions) / sizeof(supportedExtensions[0]);
 
@@ -440,6 +457,22 @@ XRAPI_ATTR XrResult XRAPI_CALL xrEnumerateViewConfigurationViews(
 
     *viewCountOutput = viewCount;
     return XR_SUCCESS;
+}
+
+// Session management functions
+
+XRAPI_ATTR XrResult XRAPI_CALL xrCreateSession(
+    XrInstance instance,
+    const XrSessionCreateInfo* createInfo,
+    XrSession* session) {
+
+    return kinect_xr::KinectXRRuntime::getInstance().createSession(instance, createInfo, session);
+}
+
+XRAPI_ATTR XrResult XRAPI_CALL xrDestroySession(
+    XrSession session) {
+
+    return kinect_xr::KinectXRRuntime::getInstance().destroySession(session);
 }
 
 } // extern "C"
