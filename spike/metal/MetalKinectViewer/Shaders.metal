@@ -38,3 +38,12 @@ fragment float4 fragmentShader(VertexOut in [[stage_in]]) {
     // Green color to verify rendering works
     return float4(0.0, 1.0, 0.0, 1.0);
 }
+
+// Fragment shader: textured (for M3 - RGB display)
+fragment float4 textureFragment(VertexOut in [[stage_in]],
+                                texture2d<float> rgbTexture [[texture(0)]],
+                                sampler textureSampler [[sampler(0)]]) {
+    // Sample RGB texture
+    float4 color = rgbTexture.sample(textureSampler, in.texCoord);
+    return color;
+}

@@ -98,7 +98,7 @@ spike/metal/
   - Log frame receipt to console
   - Validation: Console shows frame callbacks
 
-- [ ] **M3: Upload RGB frames to Metal texture**
+- [x] **M3: Upload RGB frames to Metal texture**
   - Create MTLTexture with appropriate format (BGRA8Unorm)
   - Copy RGB frame data to texture on each callback
   - Handle RGB to BGRA conversion if needed
@@ -173,7 +173,13 @@ spike/metal/
 - Validation: App initializes Kinect, starts streams, logs frame receipt
 
 ### Milestone 3
--
+- Created 640x480 BGRA8Unorm Metal texture for RGB data
+- Implemented RGB888 to BGRA conversion in updateRGBTextureWithData
+- Added texture sampler with linear filtering
+- Updated shader to sample texture (textureFragment)
+- Wired Kinect video callback to update texture on each frame
+- **Decision Q2:** Using Option A (CPU copy via MTLTexture.replace)
+- Validation: RGB video displays in window (manual test required)
 
 ### Milestone 4
 -
