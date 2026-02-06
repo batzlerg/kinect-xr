@@ -14,6 +14,8 @@ struct InstanceData;
 struct SystemData;
 struct SessionData;
 struct SpaceData;
+struct SwapchainData;
+struct FrameState;
 
 // Space data
 struct SpaceData {
@@ -47,6 +49,44 @@ enum class SessionState {
     STOPPING
 };
 
+// Swapchain data
+struct SwapchainData {
+    XrSwapchain handle;
+    XrSession session;  // Parent session
+    uint32_t width;
+    uint32_t height;
+    int64_t format;  // Metal pixel format (BGRA8Unorm)
+    uint32_t imageCount;  // Always 3 (triple buffering)
+    uint32_t currentImageIndex;  // Current acquired image
+    bool imageAcquired;  // Is an image currently acquired?
+
+    // Metal textures (stored as void* to avoid Metal headers)
+    void* metalTextures[3];  // MTLTexture pointers
+
+    SwapchainData(XrSwapchain h, XrSession sess, uint32_t w, uint32_t ht, int64_t fmt)
+        : handle(h)
+        , session(sess)
+        , width(w)
+        , height(ht)
+        , format(fmt)
+        , imageCount(3)
+        , currentImageIndex(0)
+        , imageAcquired(false)
+        , metalTextures{nullptr, nullptr, nullptr} {}
+};
+
+// Frame state for frame loop timing
+struct FrameState {
+    bool frameInProgress;  // Between xrBeginFrame and xrEndFrame
+    XrTime lastFrameTime;  // Last predicted display time
+    uint64_t frameCount;  // Total frames rendered
+
+    FrameState()
+        : frameInProgress(false)
+        , lastFrameTime(0)
+        , frameCount(0) {}
+};
+
 // Session data
 struct SessionData {
     XrSession handle;
@@ -57,6 +97,10 @@ struct SessionData {
 
     // Metal graphics binding (stored as void* to avoid Metal headers in this header)
     void* metalCommandQueue;
+    void* metalDevice;  // MTLDevice pointer (needed for swapchain creation)
+
+    // Frame state
+    FrameState frameState;
 
     SessionData(XrSession h, XrInstance inst, XrSystemId sysId)
         : handle(h)
@@ -64,7 +108,8 @@ struct SessionData {
         , systemId(sysId)
         , state(SessionState::IDLE)
         , viewConfigurationType(XR_VIEW_CONFIGURATION_TYPE_MAX_ENUM)
-        , metalCommandQueue(nullptr) {}
+        , metalCommandQueue(nullptr)
+        , metalDevice(nullptr) {}
 };
 
 // Instance data
@@ -136,6 +181,19 @@ public:
     // Graphics requirements
     XrResult getMetalGraphicsRequirements(XrInstance instance, XrSystemId systemId, XrGraphicsRequirementsMetalKHR* graphicsRequirements);
 
+    // Swapchain management
+    XrResult enumerateSwapchainFormats(XrSession session, uint32_t formatCapacityInput, uint32_t* formatCountOutput, int64_t* formats);
+    XrResult createSwapchain(XrSession session, const XrSwapchainCreateInfo* createInfo, XrSwapchain* swapchain);
+    XrResult destroySwapchain(XrSwapchain swapchain);
+    XrResult enumerateSwapchainImages(XrSwapchain swapchain, uint32_t imageCapacityInput, uint32_t* imageCountOutput, XrSwapchainImageBaseHeader* images);
+    XrResult acquireSwapchainImage(XrSwapchain swapchain, const XrSwapchainImageAcquireInfo* acquireInfo, uint32_t* index);
+    XrResult waitSwapchainImage(XrSwapchain swapchain, const XrSwapchainImageWaitInfo* waitInfo);
+    XrResult releaseSwapchainImage(XrSwapchain swapchain, const XrSwapchainImageReleaseInfo* releaseInfo);
+
+    // Swapchain validation
+    bool isValidSwapchain(XrSwapchain swapchain) const;
+    SwapchainData* getSwapchainData(XrSwapchain swapchain);
+
     // Delete copy and move constructors/operators
     KinectXRRuntime(const KinectXRRuntime&) = delete;
     KinectXRRuntime& operator=(const KinectXRRuntime&) = delete;
@@ -158,6 +216,10 @@ private:
     mutable std::mutex spaceMutex_;
     std::unordered_map<XrSpace, std::unique_ptr<SpaceData>> spaces_;
     uint64_t nextSpaceId_ = 1;
+
+    mutable std::mutex swapchainMutex_;
+    std::unordered_map<XrSwapchain, std::unique_ptr<SwapchainData>> swapchains_;
+    uint64_t nextSwapchainId_ = 1;
 };
 
 } // namespace kinect_xr

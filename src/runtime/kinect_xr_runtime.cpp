@@ -518,5 +518,56 @@ XrResult KinectXRRuntime::getMetalGraphicsRequirements(XrInstance instance, XrSy
     return XR_SUCCESS;
 }
 
+bool KinectXRRuntime::isValidSwapchain(XrSwapchain swapchain) const {
+    std::lock_guard<std::mutex> lock(swapchainMutex_);
+    return swapchains_.find(swapchain) != swapchains_.end();
+}
+
+SwapchainData* KinectXRRuntime::getSwapchainData(XrSwapchain swapchain) {
+    std::lock_guard<std::mutex> lock(swapchainMutex_);
+
+    auto it = swapchains_.find(swapchain);
+    if (it == swapchains_.end()) {
+        return nullptr;
+    }
+
+    return it->second.get();
+}
+
+XrResult KinectXRRuntime::enumerateSwapchainFormats(XrSession session, uint32_t formatCapacityInput, uint32_t* formatCountOutput, int64_t* formats) {
+    // Stub for M2
+    return XR_ERROR_RUNTIME_FAILURE;
+}
+
+XrResult KinectXRRuntime::createSwapchain(XrSession session, const XrSwapchainCreateInfo* createInfo, XrSwapchain* swapchain) {
+    // Stub for M3
+    return XR_ERROR_RUNTIME_FAILURE;
+}
+
+XrResult KinectXRRuntime::destroySwapchain(XrSwapchain swapchain) {
+    // Stub for M3
+    return XR_ERROR_RUNTIME_FAILURE;
+}
+
+XrResult KinectXRRuntime::enumerateSwapchainImages(XrSwapchain swapchain, uint32_t imageCapacityInput, uint32_t* imageCountOutput, XrSwapchainImageBaseHeader* images) {
+    // Stub for M3
+    return XR_ERROR_RUNTIME_FAILURE;
+}
+
+XrResult KinectXRRuntime::acquireSwapchainImage(XrSwapchain swapchain, const XrSwapchainImageAcquireInfo* acquireInfo, uint32_t* index) {
+    // Stub for M5
+    return XR_ERROR_RUNTIME_FAILURE;
+}
+
+XrResult KinectXRRuntime::waitSwapchainImage(XrSwapchain swapchain, const XrSwapchainImageWaitInfo* waitInfo) {
+    // Stub for M5
+    return XR_ERROR_RUNTIME_FAILURE;
+}
+
+XrResult KinectXRRuntime::releaseSwapchainImage(XrSwapchain swapchain, const XrSwapchainImageReleaseInfo* releaseInfo) {
+    // Stub for M5
+    return XR_ERROR_RUNTIME_FAILURE;
+}
+
 } // namespace kinect_xr
 
