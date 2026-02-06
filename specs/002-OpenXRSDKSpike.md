@@ -160,7 +160,7 @@ Create new file documenting:
 
 ## Archive Criteria
 
-- [ ] All milestones complete
-- [ ] All acceptance criteria met
-- [ ] Findings documented in docs/planning/openxr-sdk-integration.md
+- [x] All milestones complete
+- [x] All acceptance criteria met
+- [x] Findings documented in docs/planning/openxr-sdk-integration.md
 - [ ] Spec moved to specs/archive/002-OpenXRSDKSpike.md
