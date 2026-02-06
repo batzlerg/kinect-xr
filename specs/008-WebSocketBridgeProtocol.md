@@ -1,6 +1,6 @@
 # Spec 008: WebSocket Bridge Protocol
 
-**Status:** active
+**Status:** complete
 **Created:** 2026-02-06
 **Branch:** main (no worktree needed for protocol design)
 

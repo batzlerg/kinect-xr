@@ -1,6 +1,6 @@
 # Spec 011: P5.js Examples
 
-**Status:** active
+**Status:** complete
 **Created:** 2026-02-06
 **Branch:** main
 **Depends on:** Spec 010 (kinect-client.js)

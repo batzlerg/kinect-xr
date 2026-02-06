@@ -1,6 +1,6 @@
 # Spec 010: Kinect Client JS Library
 
-**Status:** active
+**Status:** complete
 **Created:** 2026-02-06
 **Branch:** main
 **Depends on:** Spec 008 (Protocol), Spec 009 (Server)
