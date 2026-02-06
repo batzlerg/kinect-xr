@@ -174,8 +174,29 @@ tests/unit/
 1. ~~Which WebSocket library?~~ **Decision: IXWebSocket**
 2. ~~How to handle slow clients?~~ **Decision: Drop frames, track dropped_frames count**
 
+## Documentation Updates
+
+**PRD.md:**
+- WebSocket bridge documented as delivered capability
+- Performance improvements noted (on-demand streaming, clean logging)
+
+**ARCHITECTURE.md:**
+- Bridge server architecture documented in dual-path strategy section
+- KinectDevice integration flow explained
+
+## Archive Criteria
+
+- [x] All milestones complete
+- [x] All acceptance criteria met
+- [x] Tests passing (integration tests validated with hardware)
+- [x] **Proposed doc updates drafted** in section above
+- [x] **PRD.md updated** (bridge delivery confirmed)
+- [x] **ARCHITECTURE.md updated** (server architecture documented)
+- [ ] Spec moved to `specs/archive/009-WebSocketBridgeServer.md`
+
 ## Revision History
 
 | Date | Change |
 |------|--------|
 | 2026-02-06 | Initial spec |
+| 2026-02-06 | Marked complete, all milestones validated |

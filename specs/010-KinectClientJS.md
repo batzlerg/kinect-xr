@@ -102,8 +102,29 @@ web/
 - Stats show ~30 FPS for both streams
 - No dropped frames on localhost
 
+## Documentation Updates
+
+**PRD.md:**
+- KinectClient.js library documented as browser integration tool
+- ES module API documented
+
+**ARCHITECTURE.md:**
+- Client library architecture added to dual-path strategy
+- Protocol handling explained
+
+## Archive Criteria
+
+- [x] All milestones complete
+- [x] All acceptance criteria met
+- [x] Tests passing (validated with P5.js examples)
+- [x] **Proposed doc updates drafted** in section above
+- [x] **PRD.md updated** (client library documented)
+- [x] **ARCHITECTURE.md updated** (client architecture explained)
+- [ ] Spec moved to `specs/archive/010-KinectClientJS.md`
+
 ## Revision History
 
 | Date | Change |
 |------|--------|
 | 2026-02-06 | Initial implementation (M1-M2 complete) |
+| 2026-02-06 | Marked complete, ready for archive |

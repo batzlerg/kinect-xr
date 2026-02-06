@@ -267,8 +267,31 @@ ws.onmessage = (event) => {
 2. ~~Single binary message with both RGB+depth, or separate?~~ **Decision: Separate. Allows subscribing to depth-only for performance.**
 3. ~~Port number?~~ **Decision: 8765 (memorable, unlikely conflict)**
 
+## Documentation Updates
+
+**PRD.md:**
+- Moved WebSocket bridge from "Future Vision: Deferred" to "Delivered: WebSocket Bridge (Parallel Path)"
+- Added component table showing bridge server, KinectClient.js, and P5.js examples
+- Updated timeline to reflect completion
+
+**ARCHITECTURE.md:**
+- Added "Dual-Path Strategy" section documenting bridge vs runtime architecture
+- Added Chrome macOS WebXR limitation explanation
+- Updated WebSocket Bridge section to "Complete" status
+
+## Archive Criteria
+
+- [x] All milestones complete
+- [x] All acceptance criteria met
+- [x] Tests passing (protocol validated with test client)
+- [x] **Proposed doc updates drafted** in section above
+- [x] **PRD.md updated** (bridge now documented as delivered)
+- [x] **ARCHITECTURE.md updated** (dual-path strategy added)
+- [ ] Spec moved to `specs/archive/008-WebSocketBridgeProtocol.md`
+
 ## Revision History
 
 | Date | Change |
 |------|--------|
 | 2026-02-06 | Initial protocol design |
+| 2026-02-06 | Marked complete, ready for archive |
