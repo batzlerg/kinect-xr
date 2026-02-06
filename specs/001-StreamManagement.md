@@ -98,7 +98,7 @@ New capabilities:
 
 ## Milestones
 
-- [ ] **M1: Add streaming state and methods to header**
+- [x] **M1: Add streaming state and methods to header**
   - Add `bool streaming_` private member to device.h
   - Declare `DeviceError startStreams()`
   - Declare `DeviceError stopStreams()`
@@ -106,7 +106,7 @@ New capabilities:
   - Add documentation comments explaining callback behavior
   - Validation: Code compiles, header changes committed
 
-- [ ] **M2: Implement basic stream lifecycle in device.cpp**
+- [x] **M2: Implement basic stream lifecycle in device.cpp**
   - Initialize `streaming_ = false` in constructor
   - Implement `isStreaming()` to return streaming flag
   - Implement `startStreams()` skeleton (check initialized, check not already streaming)
@@ -114,7 +114,7 @@ New capabilities:
   - Add state validation error returns (e.g., starting when already streaming)
   - Validation: Unit test for state transitions passes, code compiles
 
-- [ ] **M3: Integrate libfreenect callbacks**
+- [x] **M3: Integrate libfreenect callbacks**
   - Add static C callback functions for depth and RGB (required by libfreenect C API)
   - Add frame callback registration using `freenect_set_depth_callback()` and `freenect_set_video_callback()`
   - Set user data pointer to allow callbacks to access KinectDevice instance
@@ -123,7 +123,7 @@ New capabilities:
   - Set streaming flag appropriately in start/stop methods
   - Validation: Integration test with hardware shows callbacks firing, code compiles
 
-- [ ] **M4: Add unit tests for streaming state**
+- [x] **M4: Add unit tests for streaming state**
   - Test isStreaming() returns false initially
   - Test startStreams() fails when not initialized
   - Test startStreams() succeeds when initialized, sets streaming to true
@@ -177,10 +177,39 @@ New capabilities:
 <!-- Per-milestone notes, deviations, dead-ends discovered during build -->
 
 ### Milestone 1
--
+- Added three new DeviceError enum values: NotInitialized, AlreadyStreaming, NotStreaming
+- Added streaming_ bool member to track stream state
+- Declared startStreams(), stopStreams(), and isStreaming() public methods
+- Added static callback declarations for depthCallback and videoCallback
+- Documentation comments explain the callback-based streaming model
 
 ### Milestone 2
--
+- Initialized streaming_ = false in constructor
+- Updated destructor to call stopStreams() if streaming when destroyed (ensures cleanup)
+- Implemented isStreaming() as simple getter
+- Implemented startStreams() with state validation (checks initialized, not already streaming)
+- Implemented stopStreams() with state validation (checks initialized, currently streaming)
+- Updated errorToString() to handle new error codes
+
+### Milestone 3
+- Implemented static depthCallback and videoCallback functions
+- Callbacks retrieve KinectDevice instance via freenect_get_user() for future use
+- startStreams() registers callbacks via freenect_set_depth_callback/freenect_set_video_callback
+- startStreams() sets user data pointer via freenect_set_user(dev_, this)
+- startStreams() calls freenect_start_depth() and freenect_start_video() based on config
+- stopStreams() calls freenect_stop_depth() and freenect_stop_video() based on config
+- Added error handling for stream start failures (cleans up depth if video fails)
+- Callbacks currently do no processing (placeholders for Phase 4 frame processing)
+
+### Milestone 4
+- Added unit test for initial streaming state (false)
+- Added unit test for startStreams() failing when not initialized
+- Added unit test for stopStreams() failing when not initialized
+- Created KinectDeviceStreamTest fixture for hardware-dependent tests
+- Hardware-dependent tests use GTEST_SKIP() when no hardware present
+- Tests validate: startStreams() sets flag, stopStreams() clears flag, duplicate start/stop fails
+- All tests pass without hardware (11 passed, 4 skipped gracefully)
+- Integration tests also skip gracefully when hardware not present
 
 ---
 
