@@ -94,7 +94,7 @@
 
     // Configuration
     const SAMPLE_STEP = 4;  // Sample every Nth pixel (4 = 40,000 points, 8 = 10,000 points)
-    const POINT_SIZE = 2.0;
+    const POINT_SIZE = 0.5;
     const DEPTH_SCALE = 0.001;  // Convert mm to meters for visualization
 
     // WebGL capability check
@@ -170,7 +170,7 @@
       vertexColors: true,
       sizeAttenuation: true,
       transparent: true,
-      opacity: 0.8
+      opacity: 0.6
     });
 
     const pointCloud = new THREE.Points(geometry, material);
