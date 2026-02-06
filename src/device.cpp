@@ -32,7 +32,7 @@ std::string errorToString(DeviceError error) {
 }
 
 KinectDevice::KinectDevice()
-    : ctx_(nullptr), dev_(nullptr), initialized_(false), streaming_(false) {}
+    : ctx_(nullptr), dev_(nullptr), initialized_(false), streaming_(false), eventThreadRunning_(false) {}
 
 KinectDevice::~KinectDevice() {
   if (initialized_) {
@@ -139,6 +139,25 @@ DeviceError KinectDevice::startStreams() {
   // Set user data to allow callbacks to access this instance
   freenect_set_user(dev_, this);
 
+  // Configure stream modes (MUST be done before starting streams)
+  if (config_.enableDepth) {
+    freenect_frame_mode depthMode = freenect_find_depth_mode(
+        FREENECT_RESOLUTION_MEDIUM, FREENECT_DEPTH_11BIT);
+    if (freenect_set_depth_mode(dev_, depthMode) < 0) {
+      std::cerr << "Failed to set depth mode" << std::endl;
+      return DeviceError::InitializationFailed;
+    }
+  }
+
+  if (config_.enableRGB) {
+    freenect_frame_mode videoMode = freenect_find_video_mode(
+        FREENECT_RESOLUTION_MEDIUM, FREENECT_VIDEO_RGB);
+    if (freenect_set_video_mode(dev_, videoMode) < 0) {
+      std::cerr << "Failed to set video mode" << std::endl;
+      return DeviceError::InitializationFailed;
+    }
+  }
+
   // Start depth and video streams
   if (config_.enableDepth) {
     if (freenect_start_depth(dev_) < 0) {
@@ -159,7 +178,23 @@ DeviceError KinectDevice::startStreams() {
   }
 
   streaming_ = true;
+
+  // Start USB event processing thread
+  eventThreadRunning_ = true;
+  eventThread_ = std::thread(&KinectDevice::eventLoop, this);
+
   return DeviceError::None;
+}
+
+void KinectDevice::eventLoop() {
+  std::cout << "USB event loop started" << std::endl;
+  while (eventThreadRunning_) {
+    if (freenect_process_events(ctx_) < 0) {
+      std::cerr << "Error processing freenect events" << std::endl;
+      break;
+    }
+  }
+  std::cout << "USB event loop stopped" << std::endl;
 }
 
 DeviceError KinectDevice::stopStreams() {
@@ -169,6 +204,12 @@ DeviceError KinectDevice::stopStreams() {
 
   if (!streaming_) {
     return DeviceError::NotStreaming;
+  }
+
+  // Stop USB event processing thread first
+  eventThreadRunning_ = false;
+  if (eventThread_.joinable()) {
+    eventThread_.join();
   }
 
   // Stop depth and video streams

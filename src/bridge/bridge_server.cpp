@@ -374,6 +374,12 @@ void BridgeServer::onDepthFrame(const void* data, uint32_t timestamp) {
     frameCache_.depthTimestamp = timestamp;
     frameCache_.depthValid = true;
     frameCache_.frameId++;
+
+    // Debug: Log occasionally
+    static int depthCount = 0;
+    if (++depthCount % 100 == 0) {
+        std::cout << "[DEBUG] Depth callback fired " << depthCount << " times" << std::endl;
+    }
 }
 
 void BridgeServer::onVideoFrame(const void* data, uint32_t timestamp) {
@@ -383,6 +389,12 @@ void BridgeServer::onVideoFrame(const void* data, uint32_t timestamp) {
     std::memcpy(frameCache_.rgbData.data(), data, RGB_FRAME_SIZE);
     frameCache_.rgbTimestamp = timestamp;
     frameCache_.rgbValid = true;
+
+    // Debug: Log occasionally
+    static int rgbCount = 0;
+    if (++rgbCount % 100 == 0) {
+        std::cout << "[DEBUG] RGB callback fired " << rgbCount << " times" << std::endl;
+    }
 }
 
 void BridgeServer::generateMockRgbFrame(std::vector<uint8_t>& data, uint32_t frameId) {

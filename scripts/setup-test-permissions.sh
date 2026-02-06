@@ -30,6 +30,7 @@ echo "The following binaries will be granted NOPASSWD access:"
 echo "  - $BUILD_DIR/bin/unit_tests"
 echo "  - $BUILD_DIR/bin/integration_tests"
 echo "  - $BUILD_DIR/bin/runtime_tests"
+echo "  - $BUILD_DIR/bin/kinect-bridge"
 echo ""
 
 # Check if already configured
@@ -54,6 +55,7 @@ SUDOERS_CONTENT="# Kinect XR test binaries - passwordless sudo for hardware acce
 $CURRENT_USER ALL=(ALL) NOPASSWD: $BUILD_DIR/bin/unit_tests
 $CURRENT_USER ALL=(ALL) NOPASSWD: $BUILD_DIR/bin/integration_tests
 $CURRENT_USER ALL=(ALL) NOPASSWD: $BUILD_DIR/bin/runtime_tests
+$CURRENT_USER ALL=(ALL) NOPASSWD: $BUILD_DIR/bin/kinect-bridge
 "
 
 echo "Creating sudoers file..."

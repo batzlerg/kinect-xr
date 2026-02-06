@@ -5,9 +5,11 @@
 
 #pragma once
 
+#include <atomic>
 #include <memory>
 #include <string>
 #include <functional>
+#include <thread>
 
 struct _freenect_context;
 typedef struct _freenect_context freenect_context;
@@ -119,8 +121,13 @@ class KinectDevice {
   freenect_context* ctx_;
   freenect_device* dev_;
   bool initialized_;
-  bool streaming_;
+  std::atomic<bool> streaming_;
   DeviceConfig config_;
+
+  // USB event processing thread
+  std::thread eventThread_;
+  std::atomic<bool> eventThreadRunning_;
+  void eventLoop();
 
   // User callbacks
   DepthCallback depth_callback_;
