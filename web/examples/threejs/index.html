@@ -278,8 +278,8 @@
             const normalizedDepth = depthRange > 0 ? (depth - minDepth) / depthRange : 0;
 
             // HSL-like color gradient (hue from 0 to 240 degrees)
-            // Now spans FULL color range regardless of actual depth distances
-            const hue = normalizedDepth * 240;
+            // Inverted: close = red (hue 0), far = blue (hue 240)
+            const hue = (1.0 - normalizedDepth) * 240;
             const color = hslToRgb(hue, 80, 60);
 
             colors[pointIdx * 3 + 0] = color.r;
