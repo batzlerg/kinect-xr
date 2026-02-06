@@ -29,6 +29,7 @@ set_tests_properties(IntegrationTests PROPERTIES SKIP_RETURN_CODE 77)
 # Runtime discovery tests (no hardware required)
 add_executable(runtime_tests
   runtime_discovery_test.cpp
+  session_lifecycle_test.cpp
 )
 
 target_link_libraries(runtime_tests
@@ -36,6 +37,11 @@ target_link_libraries(runtime_tests
   gtest
   gtest_main
   openxr_loader
+)
+
+target_compile_definitions(runtime_tests
+  PRIVATE
+  XR_USE_GRAPHICS_API_METAL
 )
 
 add_test(
