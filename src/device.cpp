@@ -143,8 +143,10 @@ DeviceError KinectDevice::startStreams() {
 
   // Configure stream modes (MUST be done before starting streams)
   if (config_.enableDepth) {
+    // Use FREENECT_DEPTH_MM to get actual millimeter values
+    // (FREENECT_DEPTH_11BIT returns raw disparity which has inverse relationship)
     freenect_frame_mode depthMode = freenect_find_depth_mode(
-        FREENECT_RESOLUTION_MEDIUM, FREENECT_DEPTH_11BIT);
+        FREENECT_RESOLUTION_MEDIUM, FREENECT_DEPTH_MM);
     if (freenect_set_depth_mode(dev_, depthMode) < 0) {
       std::cerr << "Failed to set depth mode" << std::endl;
       return DeviceError::InitializationFailed;
