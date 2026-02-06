@@ -1,0 +1,222 @@
+# Depth Layer Integration
+
+**Status:** draft
+**Created:** 2026-02-05
+**Branch:** main
+**Blocked By:** None
+
+## Summary
+
+Implement XR_KHR_composition_layer_depth extension and integrate live Kinect RGB + depth streaming into the OpenXR runtime. This is the **final spec for Phase 3**, completing full depth sensing capability and enabling hello_xr to render actual Kinect video feed.
+
+**What:** Connect KinectDevice callbacks to Metal texture upload, implement XrCompositionLayerDepthInfoKHR submission in xrEndFrame, create depth swapchains (R16Uint format), and bridge 11-bit Kinect depth data to OpenXR depth layers.
+
+**Why:** Phase 3's goal is depth sensing integration. Without this spec, the runtime has working swapchains but no actual sensor data flowing through them. This spec closes the loop by streaming live Kinect frames into Metal textures and submitting depth layers to applications.
+
+**Current State:**
+- Swapchain frame loop works (Spec 006 complete)
+- Metal texture patterns validated (Spec 004 complete)
+- KinectDevice provides frame callbacks
+- No actual frame data flowing to swapchains
+- hello_xr renders empty frames
+
+**Technical Approach:**
+1. **Kinect Integration:** Register callbacks on session creation, cache latest RGB + depth frames
+2. **Metal Upload:** Upload Kinect frames to Metal textures each xrWaitFrame
+3. **Depth Swapchains:** Support R16Uint format for depth textures (alongside BGRA8Unorm for color)
+4. **Depth Layer Submission:** Parse XrCompositionLayerDepthInfoKHR in xrEndFrame
+5. **Thread Safety:** Mutex-protected frame cache (callbacks fire on USB thread)
+6. **Coordinate System:** Identity mapping (depth in camera space, no transformation)
+
+**Testing Strategy:**
+- Unit tests: Depth layer structure validation, format enumeration (no hardware)
+- Integration tests: Real Kinect streaming + Metal texture upload + rendering
+- External validation: hello_xr displays live Kinect RGB + depth video
+
+## Scope
+
+**In:**
+- R16Uint depth swapchain format support
+- KinectDevice callback registration on session creation
+- Frame cache (latest RGB + depth)
+- Metal texture upload (RGB → BGRA8Unorm, depth → R16Uint)
+- XrCompositionLayerDepthInfoKHR parsing in xrEndFrame
+- Depth value passthrough (11-bit Kinect → 16-bit texture)
+- Thread safety (frame cache mutex)
+- RGB888→BGRA conversion (CPU-side)
+- Integration tests with real Kinect hardware
+
+**Out:**
+- Depth-to-RGB alignment/registration
+- Depth value transformation (normalization, scaling)
+- Point cloud generation
+- Skeletal tracking
+- Multiple Kinect devices
+- Depth compression
+- Coordinate system transformations (deferred to Phase 4)
+- Performance optimizations (profiling first)
+
+## Acceptance Criteria
+
+**Does this spec involve UI-observable behavior?** YES - hello_xr should display live Kinect video
+
+### Descriptive Criteria
+
+- [ ] xrEnumerateSwapchainFormats returns both BGRA8Unorm and R16Uint
+- [ ] Can create depth swapchains (R16Uint format)
+- [ ] KinectDevice callbacks registered on session begin
+- [ ] RGB frames uploaded to color swapchain textures
+- [ ] Depth frames uploaded to depth swapchain textures
+- [ ] xrEndFrame parses XrCompositionLayerDepthInfoKHR
+- [ ] Depth layer validation (swapchain format, dimensions)
+- [ ] Thread-safe frame cache (no race conditions)
+- [ ] RGB888→BGRA conversion works correctly
+- [ ] Unit tests pass (20+ tests, no hardware)
+- [ ] Integration tests pass (with Kinect hardware)
+- [ ] hello_xr displays live Kinect RGB + depth feed
+- [ ] No memory leaks (verified with sanitizers)
+- [ ] No frame corruption or tearing
+
+## Architecture Delta
+
+**Before:** Runtime has working swapchains but no actual sensor data. Empty frames.
+
+**After:** Live Kinect RGB + depth streaming through Metal textures to OpenXR applications.
+
+**New Components:**
+- FrameCache structure (latest RGB + depth)
+- Depth swapchain support (R16Uint)
+- KinectDevice integration in SessionData
+- XrCompositionLayerDepthInfoKHR parsing
+
+**Modified Components:**
+- SessionData: Add KinectDevice, frame cache
+- xrEnumerateSwapchainFormats: Add R16Uint
+- xrCreateSwapchain: Support depth format
+- xrWaitFrame: Upload cached frames to Metal
+- xrEndFrame: Parse depth layers
+
+## Milestones
+
+- [ ] **M1: Depth Swapchain Format** (unit tests)
+  - Add R16Uint to xrEnumerateSwapchainFormats
+  - Update createSwapchain to accept R16Uint
+  - Create R16Uint Metal textures
+  - Unit tests for format validation
+
+- [ ] **M2: Frame Cache Structure** (unit tests)
+  - Add FrameCache struct to SessionData
+  - Mutex protection for thread safety
+  - Cache RGB + depth frame buffers
+  - Unit tests for cache operations
+
+- [ ] **M3: KinectDevice Integration** (integration tests)
+  - Store KinectDevice in SessionData
+  - Initialize/start streams on session begin
+  - Stop streams on session end
+  - Register depth + video callbacks
+  - Integration test validates callbacks fire
+
+- [ ] **M4: RGB Texture Upload** (integration tests)
+  - RGB888→BGRA conversion function
+  - Upload BGRA to color swapchain in xrWaitFrame
+  - Integration test validates upload
+  - Visual inspection of RGB feed
+
+- [ ] **M5: Depth Texture Upload** (integration tests)
+  - Upload 11-bit depth to R16Uint texture
+  - Handle depth swapchain in xrWaitFrame
+  - Integration test validates depth upload
+  - Visual inspection of depth feed
+
+- [ ] **M6: Depth Layer Parsing** (unit tests)
+  - Parse XrCompositionLayerDepthInfoKHR in xrEndFrame
+  - Validate depth swapchain format
+  - Validate depth layer dimensions
+  - Unit tests for parsing logic
+
+- [ ] **M7: Integration Testing** (integration tests)
+  - End-to-end test: Kinect → Metal → xrEndFrame
+  - Validate RGB + depth both work
+  - Check for race conditions
+  - Memory leak testing
+
+- [ ] **M8: External Validation** (manual)
+  - Run hello_xr with Kinect attached
+  - Confirm live RGB video displays
+  - Confirm depth data flows (if hello_xr supports depth viz)
+  - Document validation results
+
+## Open Questions
+
+**Q1: RGB888→BGRA conversion location?**
+- **Decision:** CPU-side conversion before Metal upload
+- **Rationale:** Simple, validated in Spec 004, acceptable overhead (~1-2ms at 30Hz)
+
+**Q2: Depth value transformation?**
+- **Decision:** Passthrough (11-bit → 16-bit, no scaling)
+- **Rationale:** Defer normalization to Phase 4, keep this spec focused
+
+**Q3: Kinect device lifecycle?**
+- **Decision:** Initialize on xrBeginSession, cleanup on xrEndSession
+- **Rationale:** Matches OpenXR session lifecycle
+
+**Q4: Handle missing Kinect hardware?**
+- **Decision:** Return XR_ERROR_FORM_FACTOR_UNAVAILABLE from xrBeginSession
+- **Rationale:** Standard OpenXR error for missing hardware
+
+**Q5: Frame cache size?**
+- **Decision:** Single frame (latest only)
+- **Rationale:** Simplest, matches 30Hz design from Spec 006
+
+**Q6: Depth layer optional or required?**
+- **Decision:** Optional (application can submit color-only)
+- **Rationale:** Follows OpenXR spec, backwards compatible
+
+## Implementation Log
+
+### Milestone 1
+- (To be filled during implementation)
+
+### Milestone 2
+- (To be filled during implementation)
+
+### Milestone 3
+- (To be filled during implementation)
+
+### Milestone 4
+- (To be filled during implementation)
+
+### Milestone 5
+- (To be filled during implementation)
+
+### Milestone 6
+- (To be filled during implementation)
+
+### Milestone 7
+- (To be filled during implementation)
+
+### Milestone 8
+- (To be filled during implementation)
+
+## Documentation Updates
+
+### CLAUDE.md
+Add section on depth layer development and Kinect integration patterns.
+
+### docs/ARCHITECTURE.md
+Update Phase 3 section with depth layer implementation details.
+
+### docs/PRD.md
+Mark Phase 3 as complete.
+
+## Archive Criteria
+
+- [ ] All milestones complete (M1-M8)
+- [ ] All acceptance criteria met
+- [ ] Unit tests passing (20+ new tests)
+- [ ] Integration tests passing (with hardware)
+- [ ] hello_xr validation documented
+- [ ] No memory leaks (verified with sanitizers)
+- [ ] Documentation updated
+- [ ] Spec moved to specs/archive/007-DepthLayerIntegration.md
