@@ -47,6 +47,7 @@ target_link_libraries(kinect_xr_device
 add_library(kinect_xr_runtime_lib SHARED
   src/runtime/kinect_xr_runtime.cpp
   src/runtime/entry_points.cpp
+  src/runtime/metal_helper.mm
 )
 
 target_include_directories(kinect_xr_runtime_lib
@@ -63,6 +64,8 @@ target_compile_definitions(kinect_xr_runtime_lib
 target_link_libraries(kinect_xr_runtime_lib
   PRIVATE
   kinect_xr_device
+  "-framework Metal"
+  "-framework Foundation"
 )
 
 # Link the executable against the device library
