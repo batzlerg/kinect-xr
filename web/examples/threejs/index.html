@@ -268,7 +268,7 @@
             // This creates correct perspective based on Kinect's field of view
             const px = ((x - CX) * depthMeters) / FOCAL_LENGTH_X;
             const py = -((y - CY) * depthMeters) / FOCAL_LENGTH_Y;  // Invert Y for standard 3D coordinates
-            const pz = depthMeters;  // Positive Z = away from camera (matches Kinect depth convention)
+            const pz = -depthMeters;  // Negative Z = into scene (close depths stay close to camera at +Z)
 
             positions[pointIdx * 3 + 0] = -px;  // Mirror X for natural view
             positions[pointIdx * 3 + 1] = py;
