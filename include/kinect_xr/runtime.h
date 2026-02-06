@@ -194,6 +194,14 @@ public:
     bool isValidSwapchain(XrSwapchain swapchain) const;
     SwapchainData* getSwapchainData(XrSwapchain swapchain);
 
+    // Frame loop timing
+    XrResult waitFrame(XrSession session, const XrFrameWaitInfo* frameWaitInfo, XrFrameState* frameState);
+    XrResult beginFrame(XrSession session, const XrFrameBeginInfo* frameBeginInfo);
+    XrResult endFrame(XrSession session, const XrFrameEndInfo* frameEndInfo);
+
+    // View poses
+    XrResult locateViews(XrSession session, const XrViewLocateInfo* viewLocateInfo, XrViewState* viewState, uint32_t viewCapacityInput, uint32_t* viewCountOutput, XrView* views);
+
     // Delete copy and move constructors/operators
     KinectXRRuntime(const KinectXRRuntime&) = delete;
     KinectXRRuntime& operator=(const KinectXRRuntime&) = delete;

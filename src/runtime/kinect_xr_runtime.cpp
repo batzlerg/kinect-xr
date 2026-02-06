@@ -2,6 +2,8 @@
 #include "kinect_xr/metal_helper.h"
 #include <openxr/openxr_platform.h>
 #include <cstring>
+#include <chrono>
+#include <thread>
 
 namespace kinect_xr {
 
@@ -801,6 +803,79 @@ XrResult KinectXRRuntime::releaseSwapchainImage(XrSwapchain swapchain, const XrS
     data->imageAcquired = false;
 
     return XR_SUCCESS;
+}
+
+XrResult KinectXRRuntime::waitFrame(XrSession session, const XrFrameWaitInfo* frameWaitInfo, XrFrameState* frameState) {
+    if (!frameWaitInfo || !frameState) {
+        return XR_ERROR_VALIDATION_FAILURE;
+    }
+
+    if (frameWaitInfo->type != XR_TYPE_FRAME_WAIT_INFO) {
+        return XR_ERROR_VALIDATION_FAILURE;
+    }
+
+    if (frameState->type != XR_TYPE_FRAME_STATE) {
+        return XR_ERROR_VALIDATION_FAILURE;
+    }
+
+    std::lock_guard<std::mutex> lock(sessionMutex_);
+    auto it = sessions_.find(session);
+    if (it == sessions_.end()) {
+        return XR_ERROR_HANDLE_INVALID;
+    }
+
+    SessionData* sessionData = it->second.get();
+
+    // Session must be running (SYNCHRONIZED, VISIBLE, or FOCUSED)
+    if (sessionData->state != SessionState::SYNCHRONIZED &&
+        sessionData->state != SessionState::VISIBLE &&
+        sessionData->state != SessionState::FOCUSED) {
+        return XR_ERROR_SESSION_NOT_RUNNING;
+    }
+
+    // Pace at 30Hz (33.3ms per frame) to match Kinect's native frame rate
+    const auto targetFrameTime = std::chrono::milliseconds(33);  // ~30 FPS
+    auto now = std::chrono::steady_clock::now();
+
+    if (sessionData->frameState.lastFrameTime != 0) {
+        // Calculate time since last frame
+        auto lastFrameTimePoint = std::chrono::steady_clock::time_point(
+            std::chrono::nanoseconds(sessionData->frameState.lastFrameTime));
+        auto elapsed = now - lastFrameTimePoint;
+
+        // Sleep if we're rendering too fast
+        if (elapsed < targetFrameTime) {
+            std::this_thread::sleep_for(targetFrameTime - elapsed);
+            now = std::chrono::steady_clock::now();
+        }
+    }
+
+    // Update frame state
+    sessionData->frameState.lastFrameTime = std::chrono::duration_cast<std::chrono::nanoseconds>(
+        now.time_since_epoch()).count();
+    sessionData->frameState.frameCount++;
+
+    // Fill in XrFrameState
+    frameState->predictedDisplayTime = sessionData->frameState.lastFrameTime;
+    frameState->predictedDisplayPeriod = 33333333;  // 33.3ms in nanoseconds
+    frameState->shouldRender = XR_TRUE;  // Always render for Kinect
+
+    return XR_SUCCESS;
+}
+
+XrResult KinectXRRuntime::beginFrame(XrSession session, const XrFrameBeginInfo* frameBeginInfo) {
+    // Stub for M7
+    return XR_ERROR_RUNTIME_FAILURE;
+}
+
+XrResult KinectXRRuntime::endFrame(XrSession session, const XrFrameEndInfo* frameEndInfo) {
+    // Stub for M7
+    return XR_ERROR_RUNTIME_FAILURE;
+}
+
+XrResult KinectXRRuntime::locateViews(XrSession session, const XrViewLocateInfo* viewLocateInfo, XrViewState* viewState, uint32_t viewCapacityInput, uint32_t* viewCountOutput, XrView* views) {
+    // Stub for M8
+    return XR_ERROR_RUNTIME_FAILURE;
 }
 
 } // namespace kinect_xr
