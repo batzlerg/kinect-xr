@@ -59,6 +59,14 @@ XRAPI_ATTR XrResult XRAPI_CALL xrEnumerateViewConfigurationViews(
     uint32_t* viewCountOutput,
     XrViewConfigurationView* views);
 
+XRAPI_ATTR XrResult XRAPI_CALL xrEnumerateEnvironmentBlendModes(
+    XrInstance instance,
+    XrSystemId systemId,
+    XrViewConfigurationType viewConfigurationType,
+    uint32_t environmentBlendModeCapacityInput,
+    uint32_t* environmentBlendModeCountOutput,
+    XrEnvironmentBlendMode* environmentBlendModes);
+
 XRAPI_ATTR XrResult XRAPI_CALL xrCreateSession(
     XrInstance instance,
     const XrSessionCreateInfo* createInfo,
@@ -164,6 +172,10 @@ XRAPI_ATTR XrResult XRAPI_CALL xrGetInstanceProcAddr(
     }
     if (strcmp(name, "xrEnumerateViewConfigurationViews") == 0) {
         *function = reinterpret_cast<PFN_xrVoidFunction>(xrEnumerateViewConfigurationViews);
+        return XR_SUCCESS;
+    }
+    if (strcmp(name, "xrEnumerateEnvironmentBlendModes") == 0) {
+        *function = reinterpret_cast<PFN_xrVoidFunction>(xrEnumerateEnvironmentBlendModes);
         return XR_SUCCESS;
     }
     if (strcmp(name, "xrCreateSession") == 0) {
@@ -514,6 +526,57 @@ XRAPI_ATTR XrResult XRAPI_CALL xrEnumerateViewConfigurationViews(
     views[0].maxSwapchainSampleCount = 1;
 
     *viewCountOutput = viewCount;
+    return XR_SUCCESS;
+}
+
+XRAPI_ATTR XrResult XRAPI_CALL xrEnumerateEnvironmentBlendModes(
+    XrInstance instance,
+    XrSystemId systemId,
+    XrViewConfigurationType viewConfigurationType,
+    uint32_t environmentBlendModeCapacityInput,
+    uint32_t* environmentBlendModeCountOutput,
+    XrEnvironmentBlendMode* environmentBlendModes) {
+
+    if (!environmentBlendModeCountOutput) {
+        return XR_ERROR_VALIDATION_FAILURE;
+    }
+
+    // Validate instance and system
+    if (!kinect_xr::KinectXRRuntime::getInstance().isValidInstance(instance)) {
+        return XR_ERROR_HANDLE_INVALID;
+    }
+
+    if (!kinect_xr::KinectXRRuntime::getInstance().isValidSystem(instance, systemId)) {
+        return XR_ERROR_SYSTEM_INVALID;
+    }
+
+    // Only support PRIMARY_MONO
+    if (viewConfigurationType != XR_VIEW_CONFIGURATION_TYPE_PRIMARY_MONO) {
+        return XR_ERROR_VIEW_CONFIGURATION_TYPE_UNSUPPORTED;
+    }
+
+    // Kinect is not an AR device - no real-world passthrough
+    // Only support opaque blend mode
+    static const uint32_t blendModeCount = 1;
+
+    // Two-call idiom
+    if (environmentBlendModeCapacityInput == 0) {
+        *environmentBlendModeCountOutput = blendModeCount;
+        return XR_SUCCESS;
+    }
+
+    if (environmentBlendModeCapacityInput < blendModeCount) {
+        *environmentBlendModeCountOutput = blendModeCount;
+        return XR_ERROR_SIZE_INSUFFICIENT;
+    }
+
+    if (!environmentBlendModes) {
+        return XR_ERROR_VALIDATION_FAILURE;
+    }
+
+    environmentBlendModes[0] = XR_ENVIRONMENT_BLEND_MODE_OPAQUE;
+    *environmentBlendModeCountOutput = blendModeCount;
+
     return XR_SUCCESS;
 }
 
