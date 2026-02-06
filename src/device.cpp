@@ -8,7 +8,6 @@
 #include <libfreenect/libfreenect.h>
 
 #include <iostream>
-#include <chrono>
 #include <unistd.h>
 #include <fcntl.h>
 
