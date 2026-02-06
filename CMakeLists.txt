@@ -43,6 +43,24 @@ target_link_libraries(kinect_xr_device
   ${LIBFREENECT_LIBRARY}
 )
 
+# OpenXR Runtime Library (SHARED library for runtime discovery)
+add_library(kinect_xr_runtime_lib SHARED
+  src/runtime/kinect_xr_runtime.cpp
+  src/runtime/entry_points.cpp
+)
+
+target_include_directories(kinect_xr_runtime_lib
+  PUBLIC
+  ${CMAKE_SOURCE_DIR}/include
+  ${CMAKE_BINARY_DIR}/_deps/openxr-build/include
+)
+
+target_link_libraries(kinect_xr_runtime_lib
+  PRIVATE
+  kinect_xr_device
+)
+
+# Link the executable against the device library
 target_link_libraries(kinect_xr_runtime
   PRIVATE
   kinect_xr_device

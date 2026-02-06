@@ -1,0 +1,7 @@
+{
+    "file_format_version": "1.0.0",
+    "runtime": {
+        "name": "Kinect XR Runtime",
+        "library_path": "../build/lib/libkinect_xr_runtime_lib.dylib"
+    }
+}

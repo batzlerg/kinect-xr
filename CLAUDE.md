@@ -67,12 +67,56 @@ tests/
 | GoogleTest | Bundled (FetchContent) | v1.13.0 |
 | OpenXR | Not yet integrated | Phase 2 |
 
+## OpenXR Runtime Development
+
+To use the Kinect XR runtime during development:
+
+```bash
+source scripts/register-runtime.sh
+```
+
+This sets the `XR_RUNTIME_JSON` environment variable to point to our manifest. Any OpenXR application will then use the Kinect XR runtime.
+
+### Testing the Runtime
+
+**Internal Tests:**
+```bash
+./build/bin/runtime_tests
+```
+
+**External Validation:**
+
+The runtime can be tested with OpenXR SDK tools:
+
+1. **hello_xr** (bundled with OpenXR SDK):
+   ```bash
+   source scripts/register-runtime.sh
+   ./build/_deps/openxr-build/src/tests/hello_xr/hello_xr -g Vulkan
+   ```
+
+2. **OpenXR Explorer** (if installed):
+   ```bash
+   source scripts/register-runtime.sh
+   openxr_explorer
+   ```
+   The Kinect XR runtime should appear in the runtime list with:
+   - Name: "Kinect XR Runtime"
+   - Extension: XR_KHR_composition_layer_depth
+
+3. **Manual Verification:**
+   ```bash
+   source scripts/register-runtime.sh
+   echo $XR_RUNTIME_JSON  # Should show path to manifest
+   ```
+
 ## Testing Without Hardware
 
 All unit tests pass without physical Kinect. Integration tests will skip gracefully:
 ```
 [  SKIPPED ] No Kinect device connected, skipping test
 ```
+
+Runtime tests (M6) do not require Kinect hardware and test OpenXR API compliance.
 
 ## Docs
 
