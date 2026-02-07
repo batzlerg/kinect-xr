@@ -37,8 +37,8 @@ web/
 ├── examples/
 │   ├── threejs/
 │   │   └── index.html     # 3D depth point cloud
-│   ├── rgb-depth/
-│   │   └── index.html     # Raw RGB + depth display
+│   ├── dashboard/
+│   │   └── index.html     # Full device control dashboard
 │   └── p5js/
 │       ├── index.html     # 3D depth particles
 │       └── depth-mask.html # Depth masking effects
@@ -98,9 +98,9 @@ Visit the landing page at `http://localhost:3000` to browse all examples.
 
 Interactive 3D point cloud visualization of depth data. Rotate and zoom to explore the scene.
 
-### RGB + Depth Viewer (`/examples/rgb-depth/`)
+### Dashboard (`/examples/dashboard/`)
 
-Side-by-side view of raw RGB video and depth visualization with connection stats.
+Full device control: RGB video, depth map, motor tilt, LED states, and accelerometer readings.
 
 ### P5.js Depth Particles (`/examples/p5js/`)
 
