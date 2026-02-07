@@ -121,32 +121,51 @@ else
   BRIDGE_ARGS=""
 fi
 
-# Start bridge in background
-if [[ "$NEED_SUDO" == true ]]; then
-  log_info "Starting with sudo (hardware access)..."
-  sudo "$BRIDGE_BIN" $BRIDGE_ARGS > "$PROJECT_ROOT/tmp/bridge.log" 2>&1 &
-  BRIDGE_PID=$!
-else
-  "$BRIDGE_BIN" $BRIDGE_ARGS > "$PROJECT_ROOT/tmp/bridge.log" 2>&1 &
-  BRIDGE_PID=$!
-fi
+# Start bridge with retry logic (USB device may not be immediately available)
+MAX_RETRIES=3
+RETRY_DELAY=2
 
-# Save PID
-echo "$BRIDGE_PID" > "$BRIDGE_PID_FILE"
+for ((attempt=1; attempt<=MAX_RETRIES; attempt++)); do
+  if [[ "$NEED_SUDO" == true ]]; then
+    if [[ $attempt -eq 1 ]]; then
+      log_info "Starting with sudo (hardware access)..."
+    fi
+    sudo "$BRIDGE_BIN" $BRIDGE_ARGS > "$PROJECT_ROOT/tmp/bridge.log" 2>&1 &
+    BRIDGE_PID=$!
+  else
+    "$BRIDGE_BIN" $BRIDGE_ARGS > "$PROJECT_ROOT/tmp/bridge.log" 2>&1 &
+    BRIDGE_PID=$!
+  fi
 
-# Wait for bridge to initialize
-log_info "Waiting for bridge to initialize..."
-sleep 2
+  # Save PID
+  echo "$BRIDGE_PID" > "$BRIDGE_PID_FILE"
 
-# Check if bridge is still running
-if ! ps -p "$BRIDGE_PID" > /dev/null 2>&1; then
-  log_error "Bridge failed to start"
-  echo "Check logs: ${BOLD}$PROJECT_ROOT/tmp/bridge.log${RESET}"
-  rm "$BRIDGE_PID_FILE"
-  exit 1
-fi
+  # Wait for bridge to initialize
+  log_info "Waiting for bridge to initialize..."
+  sleep 2
 
-log_success "Bridge started (PID $BRIDGE_PID)"
+  # Check if bridge is still running
+  if ps -p "$BRIDGE_PID" > /dev/null 2>&1; then
+    log_success "Bridge started (PID $BRIDGE_PID)"
+    break
+  else
+    rm -f "$BRIDGE_PID_FILE"
+    if [[ $attempt -lt $MAX_RETRIES ]]; then
+      log_info "Bridge failed to start, retrying in ${RETRY_DELAY}s... (attempt $attempt/$MAX_RETRIES)"
+      # Check for USB device not released error
+      if grep -q "send_cmd: Bad cmd" "$PROJECT_ROOT/tmp/bridge.log" 2>/dev/null; then
+        log_info "USB device may not be released, waiting for cleanup..."
+      fi
+      sleep $RETRY_DELAY
+    else
+      log_error "Bridge failed to start after $MAX_RETRIES attempts"
+      echo "Check logs: ${BOLD}$PROJECT_ROOT/tmp/bridge.log${RESET}"
+      echo ""
+      echo "Common fix: unplug and replug the Kinect, then try again"
+      exit 1
+    fi
+  fi
+done
 
 # 5. Check if Bun is available for web server
 if ! command -v bun &> /dev/null; then
