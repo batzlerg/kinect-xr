@@ -148,9 +148,9 @@ Web Client
 
 ### WebSocket Protocol
 
-- [ ] **M4: Define motor protocol messages** - Add motor command/event types to protocol documentation
-- [ ] **M5: Implement motor message handlers** - Add handlers for motor.setTilt, motor.setLed, motor.reset, motor.getStatus in bridge server
-- [ ] **M6: Implement rate limiting** - Add 500ms rate limiter for motor commands, return motor.error on violation
+- [x] **M4: Define motor protocol messages** - Add motor command/event types to protocol documentation
+- [x] **M5: Implement motor message handlers** - Add handlers for motor.setTilt, motor.setLed, motor.reset, motor.getStatus in bridge server
+- [x] **M6: Implement rate limiting** - Add 500ms rate limiter for motor commands, return motor.error on violation
 - [ ] **M7: Implement status polling** - Poll motor status during movement, emit motor.status events to connected clients
 
 ### Client SDK
@@ -184,22 +184,33 @@ Web Client
 ## Implementation Log
 
 ### Milestone 1: Define motor types and enums
--
+- Added `LEDState` enum, `TiltStatus` enum, `MotorStatus` struct to `device.h`
+- Extended `DeviceError` enum with `MotorControlFailed`, `InvalidParameter`
 
 ### Milestone 2: Implement motor control methods
--
+- Implemented `setTiltAngle()`, `getTiltAngle()`, `setLED()`, `getMotorStatus()` in `device.cpp`
+- All methods wrap libfreenect motor API calls
+- Angle clamping to [-27, 27] implemented
 
 ### Milestone 3: Unit tests for device layer
--
+- Added 5 motor unit tests in `device_unit_test.cpp`
+- All tests pass without hardware (graceful skip logic)
 
 ### Milestone 4: Define motor protocol messages
--
+- Added motor command types: `motor.setTilt`, `motor.setLed`, `motor.reset`, `motor.getStatus`
+- Added motor event types: `motor.status`, `motor.error`
+- Updated hello message with motor capabilities
 
 ### Milestone 5: Implement motor message handlers
--
+- Implemented `handleMotorSetTilt()`, `handleMotorSetLed()`, `handleMotorReset()`, `handleMotorGetStatus()`
+- Added routing in `onMessage()` for all motor command types
+- Implemented `sendMotorStatus()`, `sendMotorError()` helpers
+- LED state string-to-enum mapping
 
 ### Milestone 6: Implement rate limiting
--
+- Added `lastMotorCommand_` timestamp tracking with `motorMutex_`
+- 500ms rate limit enforced in `handleMotorSetTilt()` and `handleMotorReset()`
+- Returns `motor.error` with code `RATE_LIMITED` on violation
 
 ### Milestone 7: Implement status polling
 -
