@@ -27,6 +27,10 @@ std::string errorToString(DeviceError error) {
       return "Streams already active";
     case DeviceError::NotStreaming:
       return "Streams not active";
+    case DeviceError::MotorControlFailed:
+      return "Motor control failed";
+    case DeviceError::InvalidParameter:
+      return "Invalid parameter";
     case DeviceError::Unknown:
     default:
       return "Unknown error";
@@ -297,6 +301,122 @@ void KinectDevice::setDepthCallback(DepthCallback callback) {
 
 void KinectDevice::setVideoCallback(VideoCallback callback) {
   video_callback_ = callback;
+}
+
+DeviceError KinectDevice::setTiltAngle(double degrees) {
+  if (!initialized_) {
+    return DeviceError::NotInitialized;
+  }
+
+  // Clamp to hardware limits (-27 to +27 degrees)
+  double clamped = degrees;
+  if (clamped < -27.0) clamped = -27.0;
+  if (clamped > 27.0) clamped = 27.0;
+
+  // Set tilt using libfreenect
+  if (freenect_set_tilt_degs(dev_, clamped) < 0) {
+    return DeviceError::MotorControlFailed;
+  }
+
+  return DeviceError::None;
+}
+
+DeviceError KinectDevice::getTiltAngle(double& outAngle) {
+  if (!initialized_) {
+    return DeviceError::NotInitialized;
+  }
+
+  // Update tilt state
+  if (freenect_update_tilt_state(dev_) < 0) {
+    return DeviceError::MotorControlFailed;
+  }
+
+  // Get tilt state
+  freenect_raw_tilt_state* state = freenect_get_tilt_state(dev_);
+  if (!state) {
+    return DeviceError::MotorControlFailed;
+  }
+
+  outAngle = freenect_get_tilt_degs(state);
+  return DeviceError::None;
+}
+
+DeviceError KinectDevice::setLED(LEDState state) {
+  if (!initialized_) {
+    return DeviceError::NotInitialized;
+  }
+
+  // Map LEDState enum to libfreenect constants
+  freenect_led_options led_option;
+  switch (state) {
+    case LEDState::Off:
+      led_option = LED_OFF;
+      break;
+    case LEDState::Green:
+      led_option = LED_GREEN;
+      break;
+    case LEDState::Red:
+      led_option = LED_RED;
+      break;
+    case LEDState::Yellow:
+      led_option = LED_YELLOW;
+      break;
+    case LEDState::BlinkGreen:
+      led_option = LED_BLINK_GREEN;
+      break;
+    case LEDState::BlinkRedYellow:
+      led_option = LED_BLINK_RED_YELLOW;
+      break;
+    default:
+      return DeviceError::InvalidParameter;
+  }
+
+  if (freenect_set_led(dev_, led_option) < 0) {
+    return DeviceError::MotorControlFailed;
+  }
+
+  return DeviceError::None;
+}
+
+DeviceError KinectDevice::getMotorStatus(MotorStatus& outStatus) {
+  if (!initialized_) {
+    return DeviceError::NotInitialized;
+  }
+
+  // Update tilt state
+  if (freenect_update_tilt_state(dev_) < 0) {
+    return DeviceError::MotorControlFailed;
+  }
+
+  // Get tilt state
+  freenect_raw_tilt_state* state = freenect_get_tilt_state(dev_);
+  if (!state) {
+    return DeviceError::MotorControlFailed;
+  }
+
+  // Get tilt angle
+  outStatus.tiltAngle = freenect_get_tilt_degs(state);
+
+  // Map tilt status
+  freenect_tilt_status_code status_code = freenect_get_tilt_status(state);
+  switch (status_code) {
+    case TILT_STATUS_STOPPED:
+      outStatus.status = TiltStatus::Stopped;
+      break;
+    case TILT_STATUS_LIMIT:
+      outStatus.status = TiltStatus::AtLimit;
+      break;
+    case TILT_STATUS_MOVING:
+      outStatus.status = TiltStatus::Moving;
+      break;
+    default:
+      outStatus.status = TiltStatus::Stopped;
+  }
+
+  // Get accelerometer data
+  freenect_get_mks_accel(state, &outStatus.accelX, &outStatus.accelY, &outStatus.accelZ);
+
+  return DeviceError::None;
 }
 
 }  // namespace kinect_xr
