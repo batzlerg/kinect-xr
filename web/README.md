@@ -21,13 +21,17 @@ open http://localhost:3000
 
 ```
 web/
+├── index.html             # Examples landing page
 ├── lib/
 │   └── kinect-client.js   # Browser library for Kinect data
 ├── examples/
+│   ├── threejs/
+│   │   └── index.html     # 3D depth point cloud
+│   ├── rgb-depth/
+│   │   └── index.html     # Raw RGB + depth display
 │   └── p5js/
 │       ├── index.html     # 3D depth particles
 │       └── depth-mask.html # Depth masking effects
-├── test.html              # Raw RGB + depth display
 ├── serve.js               # Simple static file server
 └── README.md
 ```
@@ -78,11 +82,17 @@ KINECT.STREAM_DEPTH // 'depth'
 
 ## Examples
 
-### Test Page (`/test.html`)
+Visit the landing page at `http://localhost:3000` to browse all examples.
 
-Basic test showing raw RGB video and depth visualization.
+### Three.js Point Cloud (`/examples/threejs/`)
 
-### Depth Particles (`/examples/p5js/`)
+Interactive 3D point cloud visualization of depth data. Rotate and zoom to explore the scene.
+
+### RGB + Depth Viewer (`/examples/rgb-depth/`)
+
+Side-by-side view of raw RGB video and depth visualization with connection stats.
+
+### P5.js Depth Particles (`/examples/p5js/`)
 
 3D particle cloud driven by depth data. Each pixel becomes a sphere in 3D space, colored by depth.
 
