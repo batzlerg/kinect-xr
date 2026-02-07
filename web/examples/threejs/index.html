@@ -141,7 +141,7 @@
     controls.dampingFactor = 0.05;
     controls.minDistance = 1;
     controls.maxDistance = 10;
-    controls.target.set(0, 0, 0);
+    controls.target.set(0, 0, -2);  // Look at center of typical depth range
 
     // Hide instructions after first interaction
     let hasInteracted = false;
@@ -153,9 +153,10 @@
       }
     });
 
-    // Grid helper for reference (2x2 meters, 1 meter from camera)
-    const gridHelper = new THREE.GridHelper(2, 20, 0x404040, 0x202020);
-    gridHelper.position.set(0, -0.5, 1);
+    // Grid helper for reference (4x4 meters, positioned at typical depth range)
+    // Depth values range from -0.8m to -4.0m (negative Z = into scene)
+    const gridHelper = new THREE.GridHelper(4, 40, 0x404040, 0x202020);
+    gridHelper.position.set(0, -0.5, -2);  // z=-2m is middle of typical range
     scene.add(gridHelper);
 
     // Axes helper (X=red, Y=green, Z=blue)
@@ -186,6 +187,9 @@
     });
 
     const pointCloud = new THREE.Points(geometry, material);
+    // Disable frustum culling - the bounding sphere calculation can cause
+    // the entire point cloud to disappear at certain camera angles
+    pointCloud.frustumCulled = false;
     scene.add(pointCloud);
 
     // Kinect client setup
