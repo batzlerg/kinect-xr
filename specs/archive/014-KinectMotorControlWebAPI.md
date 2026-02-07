@@ -377,4 +377,4 @@ Add motor control examples:
 - [x] **Proposed doc updates drafted** in section above (based on actual implementation)
 - [x] **PRD.md updated** - Add motor control to Phase 6 features (now implemented)
 - [x] **ARCHITECTURE.md updated** - Motor control flow, rate limiting, protocol
-- [ ] Spec moved to `specs/archive/014-KinectMotorControlWebAPI.md`
+- [x] Spec moved to `specs/archive/014-KinectMotorControlWebAPI.md`
