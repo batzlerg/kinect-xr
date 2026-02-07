@@ -154,6 +154,6 @@ None - requirements are clear.
 - [x] All acceptance criteria met
 - [x] Tests passing (if applicable)
 - [x] **Proposed doc updates drafted** in section above (based on actual implementation)
-- [ ] **PRD.md updated** if features, use cases, or product strategy changed
-- [ ] **ARCHITECTURE.md updated** if technical architecture or system design changed
+- [x] **PRD.md updated** if features, use cases, or product strategy changed (N/A - web examples only, no core product change)
+- [x] **ARCHITECTURE.md updated** if technical architecture or system design changed (N/A - static HTML, no architecture change)
 - [ ] Spec moved to `specs/archive/NNN-SpecName.md`
