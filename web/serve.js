@@ -12,9 +12,9 @@ Bun.serve({
     const url = new URL(request.url);
     let path = url.pathname;
 
-    // Default to test.html
+    // Default to index.html (examples landing page)
     if (path === '/') {
-      path = '/test.html';
+      path = '/index.html';
     }
 
     // Resolve file path

@@ -1,6 +1,6 @@
 # ExamplesLandingPage
 
-**Status:** draft
+**Status:** active
 **Created:** 2026-02-06
 **Branch:** feature/013-ExamplesLandingPage
 
