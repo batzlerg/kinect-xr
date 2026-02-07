@@ -293,6 +293,12 @@ void BridgeServer::handleMotorSetTilt(ix::WebSocket* ws, const std::string& mess
             return;
         }
 
+        // Start motor status polling if motor is moving
+        if (status.status == TiltStatus::Moving) {
+            motorMoving_ = true;
+            lastMotorStatusCheck_ = std::chrono::steady_clock::now();
+        }
+
         sendMotorStatus(ws, status);
 
     } catch (const json::parse_error& e) {
@@ -390,6 +396,12 @@ void BridgeServer::handleMotorReset(ix::WebSocket* ws) {
     if (error != DeviceError::None) {
         sendMotorError(ws, "MOTOR_STATUS_FAILED", errorToString(error));
         return;
+    }
+
+    // Start motor status polling if motor is moving
+    if (status.status == TiltStatus::Moving) {
+        motorMoving_ = true;
+        lastMotorStatusCheck_ = std::chrono::steady_clock::now();
     }
 
     sendMotorStatus(ws, status);
@@ -515,6 +527,41 @@ void BridgeServer::sendMotorError(ix::WebSocket* ws, const std::string& code, co
     ws->send(error.dump());
 }
 
+void BridgeServer::broadcastMotorStatus(const MotorStatus& status) {
+    // Map TiltStatus enum to string
+    std::string statusStr;
+    switch (status.status) {
+        case TiltStatus::Stopped:
+            statusStr = "STOPPED";
+            break;
+        case TiltStatus::Moving:
+            statusStr = "MOVING";
+            break;
+        case TiltStatus::AtLimit:
+            statusStr = "LIMIT";
+            break;
+        default:
+            statusStr = "UNKNOWN";
+            break;
+    }
+
+    json msg = {
+        {"type", "motor.status"},
+        {"angle", status.tiltAngle},
+        {"status", statusStr}
+        // Note: Omit accelerometer from polling events to reduce message size
+        // Accelerometer data available via motor.getStatus command
+    };
+
+    std::string msgStr = msg.dump();
+
+    // Broadcast to all connected clients
+    std::lock_guard<std::mutex> lock(clientsMutex_);
+    for (auto& [wsPtr, state] : clients_) {
+        wsPtr->send(msgStr);
+    }
+}
+
 void BridgeServer::broadcastLoop() {
     using namespace std::chrono;
 
@@ -523,6 +570,25 @@ void BridgeServer::broadcastLoop() {
 
     while (broadcastRunning_) {
         auto now = steady_clock::now();
+
+        // Check motor status if moving (poll every 100-200ms)
+        if (motorMoving_ && kinectDevice_) {
+            auto elapsed = duration_cast<milliseconds>(now - lastMotorStatusCheck_).count();
+            if (elapsed >= 150) {  // Poll at 150ms intervals
+                MotorStatus status;
+                auto error = kinectDevice_->getMotorStatus(status);
+                if (error == DeviceError::None) {
+                    // Broadcast status to all clients
+                    broadcastMotorStatus(status);
+
+                    // Stop polling if motor stopped or at limit
+                    if (status.status == TiltStatus::Stopped || status.status == TiltStatus::AtLimit) {
+                        motorMoving_ = false;
+                    }
+                }
+                lastMotorStatusCheck_ = now;
+            }
+        }
 
         // Print stats every 10 seconds
         if (now >= nextStatsTime) {

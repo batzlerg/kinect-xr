@@ -151,7 +151,7 @@ Web Client
 - [x] **M4: Define motor protocol messages** - Add motor command/event types to protocol documentation
 - [x] **M5: Implement motor message handlers** - Add handlers for motor.setTilt, motor.setLed, motor.reset, motor.getStatus in bridge server
 - [x] **M6: Implement rate limiting** - Add 500ms rate limiter for motor commands, return motor.error on violation
-- [ ] **M7: Implement status polling** - Poll motor status during movement, emit motor.status events to connected clients
+- [x] **M7: Implement status polling** - Poll motor status during movement, emit motor.status events to connected clients
 
 ### Client SDK
 
@@ -211,6 +211,13 @@ Web Client
 - Added `lastMotorCommand_` timestamp tracking with `motorMutex_`
 - 500ms rate limit enforced in `handleMotorSetTilt()` and `handleMotorReset()`
 - Returns `motor.error` with code `RATE_LIMITED` on violation
+
+### Milestone 7: Implement status polling
+- Added motor status polling to `broadcastLoop()` (150ms interval)
+- Implemented `broadcastMotorStatus()` to send status to all clients
+- `motorMoving_` flag triggers polling on tilt commands
+- Polling stops when motor status is `STOPPED` or `LIMIT`
+- Status events omit accelerometer data (reduce message size)
 
 ### Milestone 7: Implement status polling
 -

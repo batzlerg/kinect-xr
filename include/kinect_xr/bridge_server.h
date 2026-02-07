@@ -190,6 +190,11 @@ private:
     // Motor control rate limiting (500ms minimum interval)
     std::chrono::steady_clock::time_point lastMotorCommand_;
     std::mutex motorMutex_;
+
+    // Motor status polling
+    bool motorMoving_ = false;
+    std::chrono::steady_clock::time_point lastMotorStatusCheck_;
+    void broadcastMotorStatus(const MotorStatus& status);
 };
 
 }  // namespace kinect_xr
