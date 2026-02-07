@@ -305,6 +305,7 @@ void KinectDevice::setVideoCallback(VideoCallback callback) {
 
 DeviceError KinectDevice::setTiltAngle(double degrees) {
   if (!initialized_) {
+    std::cerr << "[Motor] setTiltAngle: device not initialized" << std::endl;
     return DeviceError::NotInitialized;
   }
 
@@ -313,11 +314,16 @@ DeviceError KinectDevice::setTiltAngle(double degrees) {
   if (clamped < -27.0) clamped = -27.0;
   if (clamped > 27.0) clamped = 27.0;
 
+  std::cout << "[Motor] Setting tilt to " << clamped << " degrees..." << std::endl;
+
   // Set tilt using libfreenect
-  if (freenect_set_tilt_degs(dev_, clamped) < 0) {
+  int result = freenect_set_tilt_degs(dev_, clamped);
+  if (result < 0) {
+    std::cerr << "[Motor] freenect_set_tilt_degs failed: " << result << std::endl;
     return DeviceError::MotorControlFailed;
   }
 
+  std::cout << "[Motor] Tilt command sent successfully" << std::endl;
   return DeviceError::None;
 }
 
@@ -371,10 +377,14 @@ DeviceError KinectDevice::setLED(LEDState state) {
       return DeviceError::InvalidParameter;
   }
 
-  if (freenect_set_led(dev_, led_option) < 0) {
+  std::cout << "[Motor] Setting LED to " << static_cast<int>(led_option) << std::endl;
+  int result = freenect_set_led(dev_, led_option);
+  if (result < 0) {
+    std::cerr << "[Motor] freenect_set_led failed: " << result << std::endl;
     return DeviceError::MotorControlFailed;
   }
 
+  std::cout << "[Motor] LED command sent successfully" << std::endl;
   return DeviceError::None;
 }
 
