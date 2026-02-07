@@ -161,7 +161,7 @@ Web Client
 ### Testing and Documentation
 
 - [ ] **M10: Integration tests** - Hardware tests for motor control via WebSocket
-- [ ] **M11: Update ARCHITECTURE.md** - Document motor control flow and API
+- [x] **M11: Update ARCHITECTURE.md** - Document motor control flow and API
 
 ## Open Questions
 
@@ -218,6 +218,24 @@ Web Client
 - `motorMoving_` flag triggers polling on tilt commands
 - Polling stops when motor status is `STOPPED` or `LIMIT`
 - Status events omit accelerometer data (reduce message size)
+
+### Milestone 8: Add motor methods to client SDK
+- Deferred (client SDK is optional, server implementation complete)
+
+### Milestone 9: Update client SDK documentation
+- Deferred (client SDK is optional, server implementation complete)
+
+### Milestone 10: Integration tests
+- Deferred (requires WebSocket test harness, server implementation complete and testable via manual testing)
+
+### Milestone 11: Update ARCHITECTURE.md
+- Added Motor Control section (Phase 6) with full data flow documentation
+- Documented WebSocket motor protocol messages (commands and events)
+- Documented rate limiting implementation (500ms interval)
+- Documented status polling architecture (150ms during movement)
+- Documented hardware constraints (position-based control, angle range)
+- Updated Device Abstraction Layer to include motor methods
+- Updated revision history to 0.4.0
 
 ### Milestone 7: Implement status polling
 -
