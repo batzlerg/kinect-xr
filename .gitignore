@@ -42,3 +42,10 @@ build/
 
 # ephemeral
 tmp/.trees/
+
+# test runtime metadata
+test-results/
+
+# tmp/ ephemeral files
+tmp/*
+!tmp/.gitkeep
