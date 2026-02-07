@@ -53,14 +53,18 @@ You should see a 3D particle cloud driven by your Kinect depth data.
 | **CMake** | 3.20+ | `brew install cmake` |
 | **C++ Compiler** | Clang (Xcode) | `xcode-select --install` |
 | **libfreenect** | 0.7.x | `brew install libfreenect` |
-| **Bun** (optional) | Latest | `brew install bun` (for web server) |
+| **Bun** | Latest | `brew install bun` (required for web server) |
 
-### Optional Tools
+### Alternative Web Server
 
-| Tool | Purpose |
-|------|---------|
-| **Node.js** | Alternative to Bun for web server |
-| **Python 3** | Alternative web server: `python3 -m http.server 3000` |
+The included `serve.js` requires Bun (uses Bun-specific APIs). If you don't want to install Bun, you can use Python's built-in server as a simpler alternative:
+
+```bash
+cd kinect-xr/web
+python3 -m http.server 3000
+```
+
+Note: Python's server lacks some features of `serve.js` (like automatic directory index) but works for basic testing.
 
 ---
 
@@ -163,11 +167,12 @@ bun run serve.js
 Serving on http://localhost:3000
 ```
 
-**Alternative (Python):**
+**Alternative (if Bun not installed):**
 ```bash
 cd kinect-xr/web
 python3 -m http.server 3000
 ```
+Note: Python's server works for basic testing but lacks some features of `serve.js`.
 
 ### Step 3: Open in Browser
 

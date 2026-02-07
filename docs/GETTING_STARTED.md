@@ -112,7 +112,7 @@ If you prefer to set things up yourself, or the setup script doesn't work for yo
 - Homebrew: https://brew.sh
 - CMake 3.20+: `brew install cmake`
 - libfreenect: `brew install libfreenect`
-- Bun (for web server): `brew install oven-sh/bun/bun`
+- Bun (required for web server): `brew install bun`
 
 ### Build Steps
 

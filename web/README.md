@@ -2,6 +2,16 @@
 
 Browser-based visualization of Kinect RGB + depth data.
 
+## Prerequisites
+
+The web server requires **Bun** (not Node.js):
+
+```bash
+brew install bun
+```
+
+The `serve.js` file uses Bun-specific APIs (`Bun.serve()`, `Bun.file()`) and will not work with Node.js.
+
 ## Quick Start
 
 ```bash
