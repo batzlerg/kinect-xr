@@ -7,6 +7,7 @@
 
 #include <atomic>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <functional>
 #include <thread>
@@ -195,6 +196,9 @@ class KinectDevice {
   // User callbacks
   DepthCallback depth_callback_;
   VideoCallback video_callback_;
+
+  // Thread safety for motor/LED control
+  mutable std::mutex deviceMutex_;
 
   // Static C callback functions for libfreenect
   static void depthCallback(freenect_device* dev, void* depth, uint32_t timestamp);

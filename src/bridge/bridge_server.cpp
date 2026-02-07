@@ -10,6 +10,7 @@
 #include <nlohmann/json.hpp>
 
 #include <chrono>
+#include <cmath>
 #include <cstring>
 #include <iomanip>
 #include <iostream>
@@ -285,21 +286,22 @@ void BridgeServer::handleMotorSetTilt(ix::WebSocket* ws, const std::string& mess
             return;
         }
 
-        // Get updated status and send back
-        MotorStatus status;
-        error = kinectDevice_->getMotorStatus(status);
-        if (error != DeviceError::None) {
-            sendMotorError(ws, "MOTOR_STATUS_FAILED", errorToString(error));
-            return;
-        }
-
-        // Start motor status polling if motor is moving
-        if (status.status == TiltStatus::Moving) {
-            motorMoving_ = true;
+        // After sending tilt command, the motor is now MOVING.
+        // We cannot read accurate position until the motor stops.
+        // The device's state register takes time to update after receiving a command.
+        // Start polling for motor completion - accurate position will be sent when motor stops.
+        motorMoving_ = true;
+        {
+            std::lock_guard<std::mutex> lock(motorMutex_);
             lastMotorStatusCheck_ = std::chrono::steady_clock::now();
         }
 
-        sendMotorStatus(ws, status);
+        // Send immediate acknowledgment with MOVING status (no angle - it's unknown while moving)
+        json ack = {
+            {"type", "motor.status"},
+            {"status", "MOVING"}
+        };
+        ws->send(ack.dump());
 
     } catch (const json::parse_error& e) {
         sendMotorError(ws, "PROTOCOL_ERROR", "Invalid motor.setTilt message");
@@ -401,7 +403,10 @@ void BridgeServer::handleMotorReset(ix::WebSocket* ws) {
     // Start motor status polling if motor is moving
     if (status.status == TiltStatus::Moving) {
         motorMoving_ = true;
-        lastMotorStatusCheck_ = std::chrono::steady_clock::now();
+        {
+            std::lock_guard<std::mutex> lock(motorMutex_);
+            lastMotorStatusCheck_ = std::chrono::steady_clock::now();
+        }
     }
 
     sendMotorStatus(ws, status);
@@ -505,7 +510,6 @@ void BridgeServer::sendMotorStatus(ix::WebSocket* ws, const MotorStatus& status)
 
     json msg = {
         {"type", "motor.status"},
-        {"angle", status.tiltAngle},
         {"status", statusStr},
         {"accelerometer", {
             {"x", status.accelX},
@@ -513,6 +517,11 @@ void BridgeServer::sendMotorStatus(ix::WebSocket* ws, const MotorStatus& status)
             {"z", status.accelZ}
         }}
     };
+
+    // Only include angle if it's valid (not NaN - which means motor is moving)
+    if (!std::isnan(status.tiltAngle)) {
+        msg["angle"] = status.tiltAngle;
+    }
 
     ws->send(msg.dump());
 }
@@ -547,11 +556,15 @@ void BridgeServer::broadcastMotorStatus(const MotorStatus& status) {
 
     json msg = {
         {"type", "motor.status"},
-        {"angle", status.tiltAngle},
         {"status", statusStr}
         // Note: Omit accelerometer from polling events to reduce message size
         // Accelerometer data available via motor.getStatus command
     };
+
+    // Only include angle if it's valid (not NaN - which means motor is moving)
+    if (!std::isnan(status.tiltAngle)) {
+        msg["angle"] = status.tiltAngle;
+    }
 
     std::string msgStr = msg.dump();
 
@@ -573,8 +586,16 @@ void BridgeServer::broadcastLoop() {
 
         // Check motor status if moving (poll every 100-200ms)
         if (motorMoving_ && kinectDevice_) {
-            auto elapsed = duration_cast<milliseconds>(now - lastMotorStatusCheck_).count();
-            if (elapsed >= 150) {  // Poll at 150ms intervals
+            bool shouldPoll = false;
+            {
+                std::lock_guard<std::mutex> lock(motorMutex_);
+                auto elapsed = duration_cast<milliseconds>(now - lastMotorStatusCheck_).count();
+                if (elapsed >= 150) {  // Poll at 150ms intervals
+                    shouldPoll = true;
+                }
+            }
+
+            if (shouldPoll) {
                 MotorStatus status;
                 auto error = kinectDevice_->getMotorStatus(status);
                 if (error == DeviceError::None) {
@@ -586,7 +607,10 @@ void BridgeServer::broadcastLoop() {
                         motorMoving_ = false;
                     }
                 }
-                lastMotorStatusCheck_ = now;
+                {
+                    std::lock_guard<std::mutex> lock(motorMutex_);
+                    lastMotorStatusCheck_ = now;
+                }
             }
         }
 

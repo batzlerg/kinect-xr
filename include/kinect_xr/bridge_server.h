@@ -192,7 +192,7 @@ private:
     std::mutex motorMutex_;
 
     // Motor status polling
-    bool motorMoving_ = false;
+    std::atomic<bool> motorMoving_{false};
     std::chrono::steady_clock::time_point lastMotorStatusCheck_;
     void broadcastMotorStatus(const MotorStatus& status);
 };

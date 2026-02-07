@@ -75,9 +75,11 @@
     .motor-section { flex: 1; min-width: 200px; }
     .motor-section h3 { margin: 0 0 10px 0; color: #4cc9f0; font-size: 14px; }
     .tilt-control { display: flex; align-items: center; gap: 15px; }
-    .tilt-slider { flex: 1; height: 8px; -webkit-appearance: none; background: #333; border-radius: 4px; }
-    .tilt-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; background: #4361ee; border-radius: 50%; cursor: pointer; }
-    .tilt-value { font-family: monospace; font-size: 18px; min-width: 60px; text-align: right; }
+    .tilt-slider { flex: 1; height: 10px; -webkit-appearance: none; background: #333; border-radius: 5px; }
+    .tilt-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 24px; height: 24px; background: #4cc9f0; border: 2px solid #fff; border-radius: 50%; cursor: pointer; }
+    .tilt-slider::-moz-range-thumb { width: 24px; height: 24px; background: #4cc9f0; border: 2px solid #fff; border-radius: 50%; cursor: pointer; }
+    .tilt-slider::-moz-range-track { height: 10px; background: #333; border-radius: 5px; }
+    .tilt-value { font-family: monospace; font-size: 24px; min-width: 70px; text-align: center; background: #0f0f23; padding: 8px 12px; border-radius: 6px; color: #4cc9f0; font-weight: bold; }
     .led-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
     .led-buttons button { padding: 8px 12px; font-size: 12px; }
     .accel-display { font-family: monospace; font-size: 12px; }
@@ -287,6 +289,14 @@
 
     let currentLED = 'off';
     let tiltTimeout = null;
+    let userControllingSlider = false;
+
+    // Track when user is actively dragging the slider
+    // Keep flag true briefly after release to prevent old status from overwriting
+    tiltSlider.addEventListener('mousedown', () => { userControllingSlider = true; });
+    tiltSlider.addEventListener('touchstart', () => { userControllingSlider = true; });
+    window.addEventListener('mouseup', () => { setTimeout(() => { userControllingSlider = false; }, 600); });
+    window.addEventListener('touchend', () => { setTimeout(() => { userControllingSlider = false; }, 600); });
 
     function enableMotorControls(enabled) {
       tiltSlider.disabled = !enabled;
@@ -299,8 +309,9 @@
       const state = status.status ?? 'UNKNOWN';
       motorStatusEl.textContent = `Motor: ${angle}° | Status: ${state}`;
 
-      // Update slider to match actual position
-      if (status.angle !== undefined) {
+      // Update slider to match actual position (but not while user is dragging)
+      // Skip if angle is null/NaN (motor is moving, angle unknown)
+      if (status.angle != null && !Number.isNaN(status.angle) && !userControllingSlider) {
         tiltSlider.value = status.angle;
         tiltValue.textContent = `${Math.round(status.angle)}°`;
       }
@@ -318,7 +329,12 @@
     };
 
     kinect.onMotorError = (error) => {
-      motorStatusEl.textContent = `Motor Error: ${error.code} - ${error.message}`;
+      // Provide user-friendly messages for common errors
+      if (error.code === 'RATE_LIMITED') {
+        motorStatusEl.textContent = 'Motor: Slow down! Wait 500ms between commands.';
+      } else {
+        motorStatusEl.textContent = `Motor Error: ${error.code} - ${error.message}`;
+      }
     };
 
     // Update on connection
@@ -348,12 +364,13 @@
       motorStatusEl.textContent = 'Motor: Not connected';
     };
 
-    // Tilt slider - debounced to respect rate limiting
+    // Tilt slider - debounced to respect server's 500ms rate limit
+    // Wait 500ms after last input before sending to ensure we don't hit rate limit
     tiltSlider.oninput = () => {
       const angle = parseInt(tiltSlider.value);
       tiltValue.textContent = `${angle}°`;
 
-      // Debounce: wait for user to stop sliding
+      // Debounce: wait for user to stop sliding (match server rate limit)
       clearTimeout(tiltTimeout);
       tiltTimeout = setTimeout(async () => {
         motorStatusEl.textContent = `Motor: Moving to ${angle}°...`;
@@ -362,7 +379,7 @@
         } catch (e) {
           motorStatusEl.textContent = `Motor Error: ${e.message}`;
         }
-      }, 100);
+      }, 500);
     };
 
     resetTiltBtn.onclick = async () => {

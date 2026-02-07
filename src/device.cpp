@@ -8,6 +8,7 @@
 #include <libfreenect/libfreenect.h>
 
 #include <iostream>
+#include <limits>
 #include <unistd.h>
 #include <fcntl.h>
 
@@ -305,7 +306,6 @@ void KinectDevice::setVideoCallback(VideoCallback callback) {
 
 DeviceError KinectDevice::setTiltAngle(double degrees) {
   if (!initialized_) {
-    std::cerr << "[Motor] setTiltAngle: device not initialized" << std::endl;
     return DeviceError::NotInitialized;
   }
 
@@ -314,16 +314,13 @@ DeviceError KinectDevice::setTiltAngle(double degrees) {
   if (clamped < -27.0) clamped = -27.0;
   if (clamped > 27.0) clamped = 27.0;
 
-  std::cout << "[Motor] Setting tilt to " << clamped << " degrees..." << std::endl;
-
-  // Set tilt using libfreenect
+  // Set tilt using libfreenect (thread-safe)
+  std::lock_guard<std::mutex> lock(deviceMutex_);
   int result = freenect_set_tilt_degs(dev_, clamped);
   if (result < 0) {
-    std::cerr << "[Motor] freenect_set_tilt_degs failed: " << result << std::endl;
     return DeviceError::MotorControlFailed;
   }
 
-  std::cout << "[Motor] Tilt command sent successfully" << std::endl;
   return DeviceError::None;
 }
 
@@ -332,7 +329,8 @@ DeviceError KinectDevice::getTiltAngle(double& outAngle) {
     return DeviceError::NotInitialized;
   }
 
-  // Update tilt state
+  // Update tilt state (thread-safe)
+  std::lock_guard<std::mutex> lock(deviceMutex_);
   if (freenect_update_tilt_state(dev_) < 0) {
     return DeviceError::MotorControlFailed;
   }
@@ -377,14 +375,13 @@ DeviceError KinectDevice::setLED(LEDState state) {
       return DeviceError::InvalidParameter;
   }
 
-  std::cout << "[Motor] Setting LED to " << static_cast<int>(led_option) << std::endl;
+  // Set LED using libfreenect (thread-safe)
+  std::lock_guard<std::mutex> lock(deviceMutex_);
   int result = freenect_set_led(dev_, led_option);
   if (result < 0) {
-    std::cerr << "[Motor] freenect_set_led failed: " << result << std::endl;
     return DeviceError::MotorControlFailed;
   }
 
-  std::cout << "[Motor] LED command sent successfully" << std::endl;
   return DeviceError::None;
 }
 
@@ -393,7 +390,8 @@ DeviceError KinectDevice::getMotorStatus(MotorStatus& outStatus) {
     return DeviceError::NotInitialized;
   }
 
-  // Update tilt state
+  // Update tilt state (thread-safe)
+  std::lock_guard<std::mutex> lock(deviceMutex_);
   if (freenect_update_tilt_state(dev_) < 0) {
     return DeviceError::MotorControlFailed;
   }
@@ -404,10 +402,7 @@ DeviceError KinectDevice::getMotorStatus(MotorStatus& outStatus) {
     return DeviceError::MotorControlFailed;
   }
 
-  // Get tilt angle
-  outStatus.tiltAngle = freenect_get_tilt_degs(state);
-
-  // Map tilt status
+  // Get tilt status FIRST (angle is invalid while moving)
   freenect_tilt_status_code status_code = freenect_get_tilt_status(state);
   switch (status_code) {
     case TILT_STATUS_STOPPED:
@@ -421,6 +416,27 @@ DeviceError KinectDevice::getMotorStatus(MotorStatus& outStatus) {
       break;
     default:
       outStatus.status = TiltStatus::Stopped;
+  }
+
+  // Get tilt angle
+  // libfreenect returns garbage values (e.g., -64) in several cases:
+  // 1. While motor is actively moving (status_code == TILT_STATUS_MOVING)
+  // 2. Briefly after motor stops, before the angle register updates
+  //
+  // To handle case #2: if the raw angle is outside the physical range
+  // (-27 to +27), it's garbage data and we should return NaN.
+  double rawAngle = freenect_get_tilt_degs(state);
+
+  if (status_code == TILT_STATUS_MOVING) {
+    // Motor is actively moving - angle is definitely invalid
+    outStatus.tiltAngle = std::numeric_limits<double>::quiet_NaN();
+  } else if (rawAngle < -27.0 || rawAngle > 27.0) {
+    // Angle is outside physical range - this is stale/garbage data
+    // The motor has stopped but the angle register hasn't updated yet
+    outStatus.tiltAngle = std::numeric_limits<double>::quiet_NaN();
+  } else {
+    // Valid angle within range
+    outStatus.tiltAngle = rawAngle;
   }
 
   // Get accelerometer data

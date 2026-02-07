@@ -9,6 +9,7 @@ add_executable(unit_tests
   frame_cache_test.cpp
   texture_upload_test.cpp
   depth_layer_test.cpp
+  thread_safety_test.cpp
 )
 
 target_link_libraries(unit_tests
@@ -17,6 +18,7 @@ target_link_libraries(unit_tests
   gtest_main
   kinect_xr_device
   kinect_xr_runtime_lib
+  kinect_bridge
   OpenXR::openxr_loader
 )
 
