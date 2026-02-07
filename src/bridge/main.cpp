@@ -21,6 +21,12 @@
 namespace {
 kinect_xr::BridgeServer* g_server = nullptr;
 
+// ANSI color codes
+const char* RED = "\033[1;31m";
+const char* YELLOW = "\033[1;33m";
+const char* GREEN = "\033[0;32m";
+const char* RESET = "\033[0m";
+
 void signalHandler(int signal) {
     std::cout << "\nReceived signal " << signal << ", shutting down..." << std::endl;
     if (g_server) {
@@ -40,6 +46,26 @@ void printUsage(const char* progName) {
               << "\n"
               << "Note: Kinect mode requires elevated privileges on macOS.\n"
               << "      Run with sudo or use --mock for testing.\n";
+}
+
+void printDeviceError(const char* message, const char* suggestion = nullptr) {
+    std::cerr << "\n";
+    std::cerr << RED << "========================================" << RESET << "\n";
+    std::cerr << RED << "  KINECT DEVICE ERROR" << RESET << "\n";
+    std::cerr << RED << "========================================" << RESET << "\n";
+    std::cerr << "\n";
+    std::cerr << RED << "  " << message << RESET << "\n";
+    std::cerr << "\n";
+    if (suggestion) {
+        std::cerr << YELLOW << "  FIX: " << suggestion << RESET << "\n";
+        std::cerr << "\n";
+    }
+    std::cerr << "  Alternatives:\n";
+    std::cerr << "    - Run with --mock for testing without hardware\n";
+    std::cerr << "    - Check USB connection and power\n";
+    std::cerr << "\n";
+    std::cerr << RED << "========================================" << RESET << "\n";
+    std::cerr << "\n";
 }
 }  // namespace
 
@@ -86,11 +112,11 @@ int main(int argc, char* argv[]) {
         // Check for Kinect
         int deviceCount = kinect_xr::KinectDevice::getDeviceCount();
         if (deviceCount == 0) {
-            std::cerr << "Error: No Kinect device found." << std::endl;
-            std::cerr << "  - Make sure Kinect is connected via USB" << std::endl;
-            std::cerr << "  - On macOS, run with sudo for USB access" << std::endl;
-            std::cerr << "  - Or use --mock for testing without hardware" << std::endl;
-            return 1;
+            printDeviceError(
+                "No Kinect device found.",
+                "Unplug and replug the Kinect USB cable, then try again."
+            );
+            return 2;  // Exit code 2 = no device found
         }
 
         std::cout << "Found " << deviceCount << " Kinect device(s)" << std::endl;
@@ -100,15 +126,18 @@ int main(int argc, char* argv[]) {
         kinect_xr::DeviceConfig config;
         config.enableRGB = true;
         config.enableDepth = true;
-        config.enableMotor = false;
+        config.enableMotor = true;  // Enable motor for tilt control
 
         auto error = kinect->initialize(config);
         if (error != kinect_xr::DeviceError::None) {
-            std::cerr << "Error initializing Kinect: " << kinect_xr::errorToString(error) << std::endl;
-            return 1;
+            printDeviceError(
+                ("Kinect initialization failed: " + kinect_xr::errorToString(error)).c_str(),
+                "Unplug and replug the Kinect USB cable, then try again."
+            );
+            return 3;  // Exit code 3 = init failed
         }
 
-        std::cout << "Kinect initialized successfully" << std::endl;
+        std::cout << GREEN << "Kinect initialized successfully" << RESET << std::endl;
 
         // Connect to bridge server (streams will start on-demand when clients connect)
         server.setKinectDevice(kinect.get());

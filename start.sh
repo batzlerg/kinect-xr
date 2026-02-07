@@ -11,6 +11,8 @@ BUILD_DIR="$SCRIPT_DIR/build"
 WEB_DIR="$SCRIPT_DIR/web"
 
 # Colors
+RED='\033[1;31m'
+YELLOW='\033[1;33m'
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
@@ -46,8 +48,47 @@ echo -e "${GREEN}Starting bridge server...${NC}"
 sudo "$BUILD_DIR/bin/kinect-bridge" &
 BRIDGE_PID=$!
 
-# Wait a moment for bridge to start
-sleep 1
+# Wait a moment for bridge to start and check if it's still running
+sleep 2
+
+if ! kill -0 $BRIDGE_PID 2>/dev/null; then
+    # Bridge exited - get exit code
+    wait $BRIDGE_PID
+    EXIT_CODE=$?
+
+    echo ""
+    echo -e "${RED}========================================"
+    echo -e "  BRIDGE SERVER FAILED TO START"
+    echo -e "========================================${NC}"
+    echo ""
+
+    case $EXIT_CODE in
+        2)
+            echo -e "${YELLOW}No Kinect device was detected.${NC}"
+            echo ""
+            echo "  Try these fixes:"
+            echo "    1. Unplug and replug the Kinect USB cable"
+            echo "    2. Check that the Kinect power supply is connected"
+            echo "    3. Wait 5 seconds after plugging in, then try again"
+            ;;
+        3)
+            echo -e "${YELLOW}Kinect was detected but failed to initialize.${NC}"
+            echo ""
+            echo "  This usually means the USB connection is stuck."
+            echo ""
+            echo "  Fix: Unplug and replug the Kinect USB cable"
+            ;;
+        *)
+            echo -e "${YELLOW}Bridge server exited with code $EXIT_CODE${NC}"
+            ;;
+    esac
+
+    echo ""
+    echo "  Alternative: Run with mock data for testing:"
+    echo "    sudo $BUILD_DIR/bin/kinect-bridge --mock"
+    echo ""
+    exit 1
+fi
 
 # Start web server
 echo -e "${GREEN}Starting web server...${NC}"
@@ -67,3 +108,20 @@ echo ""
 
 # Wait for either process to exit
 wait $BRIDGE_PID $WEB_PID
+WAIT_EXIT=$?
+
+# If bridge exited unexpectedly, check its exit code
+if ! kill -0 $BRIDGE_PID 2>/dev/null; then
+    wait $BRIDGE_PID 2>/dev/null
+    BRIDGE_EXIT=$?
+    if [ $BRIDGE_EXIT -ne 0 ]; then
+        echo ""
+        echo -e "${RED}Bridge server exited with error (code $BRIDGE_EXIT)${NC}"
+        if [ $BRIDGE_EXIT -eq 2 ] || [ $BRIDGE_EXIT -eq 3 ]; then
+            echo -e "${YELLOW}Kinect USB may have disconnected. Replug and restart.${NC}"
+        fi
+    fi
+fi
+
+# Clean up web server if still running
+kill $WEB_PID 2>/dev/null || true
