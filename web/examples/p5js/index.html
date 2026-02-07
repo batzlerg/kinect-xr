@@ -45,7 +45,9 @@
     <strong>Kinect XR + P5.js</strong><br>
     Depth-driven particle system<br><br>
     <span id="fps">FPS: --</span><br>
-    <span id="particles">Particles: --</span>
+    <span id="particles">Particles: --</span><br>
+    <span id="zoom">Zoom: --</span><br><br>
+    <em>Mouse: rotate · Scroll: zoom</em>
   </div>
   <div id="status" class="disconnected">Connecting...</div>
 
@@ -63,6 +65,12 @@
       const SAMPLE_STEP = 8;  // Sample every Nth pixel
       const MAX_PARTICLES = 5000;
       const DEPTH_SCALE = 0.3;
+
+      // Camera/zoom settings
+      let zoomLevel = 0.5;  // Start zoomed out to fit in view
+      const ZOOM_MIN = 0.2;
+      const ZOOM_MAX = 2.0;
+      const ZOOM_SPEED = 0.05;
 
       p.setup = () => {
         p.createCanvas(p.windowWidth, p.windowHeight, p.WEBGL);
@@ -106,6 +114,7 @@
         // Update info
         document.getElementById('fps').textContent = `FPS: ${p.frameRate().toFixed(1)}`;
         document.getElementById('particles').textContent = `Particles: ${particles.length}`;
+        document.getElementById('zoom').textContent = `Zoom: ${(zoomLevel * 100).toFixed(0)}%`;
 
         if (!depthData) {
           // Show waiting message
@@ -144,6 +153,9 @@
           if (particles.length >= MAX_PARTICLES) break;
         }
 
+        // Apply zoom (scale the entire scene)
+        p.scale(zoomLevel);
+
         // Camera rotation based on mouse
         const rotY = p.map(p.mouseX, 0, p.width, -p.PI/4, p.PI/4);
         const rotX = p.map(p.mouseY, 0, p.height, -p.PI/6, p.PI/6);
@@ -171,6 +183,13 @@
 
       p.windowResized = () => {
         p.resizeCanvas(p.windowWidth, p.windowHeight);
+      };
+
+      // Mouse wheel zoom
+      p.mouseWheel = (event) => {
+        zoomLevel -= event.delta * ZOOM_SPEED * 0.01;
+        zoomLevel = p.constrain(zoomLevel, ZOOM_MIN, ZOOM_MAX);
+        return false;  // Prevent page scroll
       };
 
       // Cleanup on page unload
