@@ -49,6 +49,8 @@ export class KinectClient {
     this.onDisconnect = null;  // () => void
     this.onError = null;       // (error: object) => void
     this.onStatus = null;      // (status: object) => void
+    this.onMotorStatus = null; // (status: {angle, status, accelerometer?}) => void
+    this.onMotorError = null;  // (error: {code, message}) => void
 
     // Statistics
     this.stats = {
@@ -134,6 +136,57 @@ export class KinectClient {
     }
   }
 
+  // Motor Control Methods
+
+  /**
+   * Set the tilt angle (-27 to +27 degrees)
+   * @param {number} angle - Target angle in degrees
+   * @returns {Promise<object>} Motor status after command
+   */
+  setTilt(angle) {
+    return this._sendMotorCommand({ type: 'motor.setTilt', angle });
+  }
+
+  /**
+   * Set LED state
+   * @param {string} state - One of: off, green, red, yellow, blink_green, blink_red_yellow
+   * @returns {Promise<object>} Motor status after command
+   */
+  setLED(state) {
+    return this._sendMotorCommand({ type: 'motor.setLed', state });
+  }
+
+  /**
+   * Reset tilt to level position (0 degrees)
+   * @returns {Promise<object>} Motor status after command
+   */
+  resetTilt() {
+    return this._sendMotorCommand({ type: 'motor.reset' });
+  }
+
+  /**
+   * Get current motor status
+   * @returns {Promise<object>} Motor status {angle, status, accelerometer}
+   */
+  getMotorStatus() {
+    return this._sendMotorCommand({ type: 'motor.getStatus' });
+  }
+
+  _sendMotorCommand(command) {
+    return new Promise((resolve, reject) => {
+      if (!this.connected || !this.ws) {
+        reject(new Error('Not connected'));
+        return;
+      }
+
+      // Store resolver for the next motor.status response
+      this._pendingMotorResolve = resolve;
+      this._pendingMotorReject = reject;
+
+      this.ws.send(JSON.stringify(command));
+    });
+  }
+
   /**
    * Get current statistics
    * @returns {object} Statistics object
@@ -195,6 +248,32 @@ export class KinectClient {
 
         case 'goodbye':
           console.log('[KinectClient] Server goodbye:', msg.reason);
+          break;
+
+        case 'motor.status':
+          // Resolve pending motor command promise
+          if (this._pendingMotorResolve) {
+            this._pendingMotorResolve(msg);
+            this._pendingMotorResolve = null;
+            this._pendingMotorReject = null;
+          }
+          // Also call callback for streaming status updates
+          if (this.onMotorStatus) {
+            this.onMotorStatus(msg);
+          }
+          break;
+
+        case 'motor.error':
+          console.error('[KinectClient] Motor error:', msg.code, msg.message);
+          // Reject pending motor command promise
+          if (this._pendingMotorReject) {
+            this._pendingMotorReject(new Error(`${msg.code}: ${msg.message}`));
+            this._pendingMotorResolve = null;
+            this._pendingMotorReject = null;
+          }
+          if (this.onMotorError) {
+            this.onMotorError(msg);
+          }
           break;
 
         default:
@@ -291,6 +370,10 @@ export const KINECT = {
   STREAM_DEPTH: 'depth',
   MIN_DEPTH_MM: 800,
   MAX_DEPTH_MM: 4000,
+  // Motor control
+  TILT_MIN: -27,
+  TILT_MAX: 27,
+  LED_STATES: ['off', 'green', 'red', 'yellow', 'blink_green', 'blink_red_yellow'],
 };
 
 export default KinectClient;

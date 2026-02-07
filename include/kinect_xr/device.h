@@ -25,7 +25,41 @@ enum class DeviceError {
   NotInitialized,
   AlreadyStreaming,
   NotStreaming,
+  MotorControlFailed,
+  InvalidParameter,
   Unknown
+};
+
+/**
+ * @brief LED states for Kinect LED
+ */
+enum class LEDState {
+  Off = 0,
+  Green = 1,
+  Red = 2,
+  Yellow = 3,
+  BlinkGreen = 4,
+  BlinkRedYellow = 6
+};
+
+/**
+ * @brief Motor tilt status
+ */
+enum class TiltStatus {
+  Stopped = 0x00,
+  AtLimit = 0x01,
+  Moving = 0x04
+};
+
+/**
+ * @brief Motor status including angle and accelerometer
+ */
+struct MotorStatus {
+  double tiltAngle;          ///< Current tilt angle in degrees (-27 to +27)
+  TiltStatus status;         ///< Motor movement status
+  double accelX;             ///< Accelerometer X (m/s²)
+  double accelY;             ///< Accelerometer Y (m/s²)
+  double accelZ;             ///< Accelerometer Z (m/s²)
 };
 
 std::string errorToString(DeviceError error);
@@ -116,6 +150,35 @@ class KinectDevice {
    * @note For spike/prototyping use. Called from libfreenect thread.
    */
   void setVideoCallback(VideoCallback callback);
+
+  /**
+   * @brief Set motor tilt angle
+   * @param degrees Target angle in degrees (-27 to +27, clamped to range)
+   * @return DeviceError Error code, None if successful
+   * @note Blocking call. Motor may still be moving when function returns.
+   */
+  DeviceError setTiltAngle(double degrees);
+
+  /**
+   * @brief Get current motor tilt angle
+   * @param outAngle Output parameter for angle in degrees
+   * @return DeviceError Error code, None if successful
+   */
+  DeviceError getTiltAngle(double& outAngle);
+
+  /**
+   * @brief Set Kinect LED state
+   * @param state LED state to set
+   * @return DeviceError Error code, None if successful
+   */
+  DeviceError setLED(LEDState state);
+
+  /**
+   * @brief Get complete motor status including angle and accelerometer
+   * @param outStatus Output parameter for motor status
+   * @return DeviceError Error code, None if successful
+   */
+  DeviceError getMotorStatus(MotorStatus& outStatus);
 
  private:
   freenect_context* ctx_;

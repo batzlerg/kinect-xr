@@ -23,6 +23,7 @@ class WebSocket;
 namespace kinect_xr {
 
 class KinectDevice;
+struct MotorStatus;
 
 // Stream types (matches protocol spec)
 constexpr uint16_t STREAM_TYPE_RGB = 0x0001;
@@ -128,12 +129,18 @@ private:
     // Message handlers
     void handleSubscribe(ix::WebSocket* ws, const std::string& message);
     void handleUnsubscribe(ix::WebSocket* ws);
+    void handleMotorSetTilt(ix::WebSocket* ws, const std::string& message);
+    void handleMotorSetLed(ix::WebSocket* ws, const std::string& message);
+    void handleMotorReset(ix::WebSocket* ws);
+    void handleMotorGetStatus(ix::WebSocket* ws);
 
     // Send helpers
     void sendHello(ix::WebSocket* ws);
     void sendError(ix::WebSocket* ws, const std::string& code,
                    const std::string& message, bool recoverable);
     void sendStatus(ix::WebSocket* ws);
+    void sendMotorStatus(ix::WebSocket* ws, const MotorStatus& status);
+    void sendMotorError(ix::WebSocket* ws, const std::string& code, const std::string& message);
 
     // Frame broadcasting
     void broadcastLoop();
@@ -179,6 +186,15 @@ private:
     std::atomic<uint32_t> depthFrameCount_{0};
     std::chrono::steady_clock::time_point lastStatsTime_;
     std::mutex statsMutex_;
+
+    // Motor control rate limiting (500ms minimum interval)
+    std::chrono::steady_clock::time_point lastMotorCommand_;
+    std::mutex motorMutex_;
+
+    // Motor status polling
+    bool motorMoving_ = false;
+    std::chrono::steady_clock::time_point lastMotorStatusCheck_;
+    void broadcastMotorStatus(const MotorStatus& status);
 };
 
 }  // namespace kinect_xr

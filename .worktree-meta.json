@@ -1,0 +1,9 @@
+{
+  "created": "2026-02-07T04:49:09Z",
+  "type": "spec",
+  "branch": "feature/014-KinectMotorControlWebAPI",
+  "created_by": "claude-code",
+  "spec_id": "014",
+  "spec_path": "specs/014-*.md",
+  "description": "Spec 014"
+}

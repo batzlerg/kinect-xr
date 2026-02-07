@@ -167,6 +167,14 @@ void BridgeServer::onMessage(ix::WebSocket* ws, const std::string& message) {
             handleSubscribe(ws, message);
         } else if (type == "unsubscribe") {
             handleUnsubscribe(ws);
+        } else if (type == "motor.setTilt") {
+            handleMotorSetTilt(ws, message);
+        } else if (type == "motor.setLed") {
+            handleMotorSetLed(ws, message);
+        } else if (type == "motor.reset") {
+            handleMotorReset(ws);
+        } else if (type == "motor.getStatus") {
+            handleMotorGetStatus(ws);
         } else {
             sendError(ws, "PROTOCOL_ERROR", "Unknown message type: " + type, true);
         }
@@ -241,6 +249,184 @@ void BridgeServer::handleUnsubscribe(ix::WebSocket* ws) {
     std::cout << "Client unsubscribed" << std::endl;
 }
 
+void BridgeServer::handleMotorSetTilt(ix::WebSocket* ws, const std::string& message) {
+    if (!ws) return;
+
+    // Check if Kinect device is available
+    if (!kinectDevice_) {
+        sendMotorError(ws, "DEVICE_NOT_CONNECTED", "Kinect device not connected");
+        return;
+    }
+
+    try {
+        auto msg = json::parse(message);
+        double angle = msg.value("angle", 0.0);
+
+        // Rate limiting: 500ms minimum interval
+        {
+            std::lock_guard<std::mutex> lock(motorMutex_);
+            auto now = std::chrono::steady_clock::now();
+            auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+                now - lastMotorCommand_).count();
+
+            if (elapsed < 500) {
+                sendMotorError(ws, "RATE_LIMITED",
+                    "Minimum 500ms between tilt commands");
+                return;
+            }
+
+            lastMotorCommand_ = now;
+        }
+
+        // Set tilt angle (device will clamp to [-27, 27])
+        auto error = kinectDevice_->setTiltAngle(angle);
+        if (error != DeviceError::None) {
+            sendMotorError(ws, "MOTOR_CONTROL_FAILED", errorToString(error));
+            return;
+        }
+
+        // Get updated status and send back
+        MotorStatus status;
+        error = kinectDevice_->getMotorStatus(status);
+        if (error != DeviceError::None) {
+            sendMotorError(ws, "MOTOR_STATUS_FAILED", errorToString(error));
+            return;
+        }
+
+        // Start motor status polling if motor is moving
+        if (status.status == TiltStatus::Moving) {
+            motorMoving_ = true;
+            lastMotorStatusCheck_ = std::chrono::steady_clock::now();
+        }
+
+        sendMotorStatus(ws, status);
+
+    } catch (const json::parse_error& e) {
+        sendMotorError(ws, "PROTOCOL_ERROR", "Invalid motor.setTilt message");
+    }
+}
+
+void BridgeServer::handleMotorSetLed(ix::WebSocket* ws, const std::string& message) {
+    if (!ws) return;
+
+    // Check if Kinect device is available
+    if (!kinectDevice_) {
+        sendMotorError(ws, "DEVICE_NOT_CONNECTED", "Kinect device not connected");
+        return;
+    }
+
+    try {
+        auto msg = json::parse(message);
+        std::string stateStr = msg.value("state", "");
+
+        // Map string to LEDState enum
+        LEDState state;
+        if (stateStr == "off") {
+            state = LEDState::Off;
+        } else if (stateStr == "green") {
+            state = LEDState::Green;
+        } else if (stateStr == "red") {
+            state = LEDState::Red;
+        } else if (stateStr == "yellow") {
+            state = LEDState::Yellow;
+        } else if (stateStr == "blink_green") {
+            state = LEDState::BlinkGreen;
+        } else if (stateStr == "blink_red_yellow") {
+            state = LEDState::BlinkRedYellow;
+        } else {
+            sendMotorError(ws, "INVALID_LED_STATE",
+                "Valid states: off, green, red, yellow, blink_green, blink_red_yellow");
+            return;
+        }
+
+        // Set LED state
+        auto error = kinectDevice_->setLED(state);
+        if (error != DeviceError::None) {
+            sendMotorError(ws, "LED_CONTROL_FAILED", errorToString(error));
+            return;
+        }
+
+        // Send success response (motor.status with current state)
+        MotorStatus status;
+        error = kinectDevice_->getMotorStatus(status);
+        if (error == DeviceError::None) {
+            sendMotorStatus(ws, status);
+        }
+
+    } catch (const json::parse_error& e) {
+        sendMotorError(ws, "PROTOCOL_ERROR", "Invalid motor.setLed message");
+    }
+}
+
+void BridgeServer::handleMotorReset(ix::WebSocket* ws) {
+    if (!ws) return;
+
+    // Check if Kinect device is available
+    if (!kinectDevice_) {
+        sendMotorError(ws, "DEVICE_NOT_CONNECTED", "Kinect device not connected");
+        return;
+    }
+
+    // Rate limiting: 500ms minimum interval
+    {
+        std::lock_guard<std::mutex> lock(motorMutex_);
+        auto now = std::chrono::steady_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+            now - lastMotorCommand_).count();
+
+        if (elapsed < 500) {
+            sendMotorError(ws, "RATE_LIMITED",
+                "Minimum 500ms between motor commands");
+            return;
+        }
+
+        lastMotorCommand_ = now;
+    }
+
+    // Reset to 0 degrees (level position)
+    auto error = kinectDevice_->setTiltAngle(0.0);
+    if (error != DeviceError::None) {
+        sendMotorError(ws, "MOTOR_CONTROL_FAILED", errorToString(error));
+        return;
+    }
+
+    // Get updated status and send back
+    MotorStatus status;
+    error = kinectDevice_->getMotorStatus(status);
+    if (error != DeviceError::None) {
+        sendMotorError(ws, "MOTOR_STATUS_FAILED", errorToString(error));
+        return;
+    }
+
+    // Start motor status polling if motor is moving
+    if (status.status == TiltStatus::Moving) {
+        motorMoving_ = true;
+        lastMotorStatusCheck_ = std::chrono::steady_clock::now();
+    }
+
+    sendMotorStatus(ws, status);
+}
+
+void BridgeServer::handleMotorGetStatus(ix::WebSocket* ws) {
+    if (!ws) return;
+
+    // Check if Kinect device is available
+    if (!kinectDevice_) {
+        sendMotorError(ws, "DEVICE_NOT_CONNECTED", "Kinect device not connected");
+        return;
+    }
+
+    // Get motor status
+    MotorStatus status;
+    auto error = kinectDevice_->getMotorStatus(status);
+    if (error != DeviceError::None) {
+        sendMotorError(ws, "MOTOR_STATUS_FAILED", errorToString(error));
+        return;
+    }
+
+    sendMotorStatus(ws, status);
+}
+
 void BridgeServer::sendHello(ix::WebSocket* ws) {
     json hello = {
         {"type", "hello"},
@@ -263,7 +449,12 @@ void BridgeServer::sendHello(ix::WebSocket* ws) {
                 {"min_depth_mm", 800},
                 {"max_depth_mm", 4000}
             }},
-            {"frame_rate_hz", 30}
+            {"frame_rate_hz", 30},
+            {"motor", {
+                {"tilt_range_degrees", {-27, 27}},
+                {"rate_limit_ms", 500},
+                {"led_states", {"off", "green", "red", "yellow", "blink_green", "blink_red_yellow"}}
+            }}
         }}
     };
 
@@ -294,6 +485,83 @@ void BridgeServer::sendStatus(ix::WebSocket* ws) {
     ws->send(status.dump());
 }
 
+void BridgeServer::sendMotorStatus(ix::WebSocket* ws, const MotorStatus& status) {
+    // Map TiltStatus enum to string
+    std::string statusStr;
+    switch (status.status) {
+        case TiltStatus::Stopped:
+            statusStr = "STOPPED";
+            break;
+        case TiltStatus::Moving:
+            statusStr = "MOVING";
+            break;
+        case TiltStatus::AtLimit:
+            statusStr = "LIMIT";
+            break;
+        default:
+            statusStr = "UNKNOWN";
+            break;
+    }
+
+    json msg = {
+        {"type", "motor.status"},
+        {"angle", status.tiltAngle},
+        {"status", statusStr},
+        {"accelerometer", {
+            {"x", status.accelX},
+            {"y", status.accelY},
+            {"z", status.accelZ}
+        }}
+    };
+
+    ws->send(msg.dump());
+}
+
+void BridgeServer::sendMotorError(ix::WebSocket* ws, const std::string& code, const std::string& message) {
+    json error = {
+        {"type", "motor.error"},
+        {"code", code},
+        {"message", message}
+    };
+
+    ws->send(error.dump());
+}
+
+void BridgeServer::broadcastMotorStatus(const MotorStatus& status) {
+    // Map TiltStatus enum to string
+    std::string statusStr;
+    switch (status.status) {
+        case TiltStatus::Stopped:
+            statusStr = "STOPPED";
+            break;
+        case TiltStatus::Moving:
+            statusStr = "MOVING";
+            break;
+        case TiltStatus::AtLimit:
+            statusStr = "LIMIT";
+            break;
+        default:
+            statusStr = "UNKNOWN";
+            break;
+    }
+
+    json msg = {
+        {"type", "motor.status"},
+        {"angle", status.tiltAngle},
+        {"status", statusStr}
+        // Note: Omit accelerometer from polling events to reduce message size
+        // Accelerometer data available via motor.getStatus command
+    };
+
+    std::string msgStr = msg.dump();
+
+    // Broadcast to all connected clients
+    std::lock_guard<std::mutex> lock(clientsMutex_);
+    for (auto& [wsPtr, state] : clients_) {
+        wsPtr->send(msgStr);
+    }
+}
+
 void BridgeServer::broadcastLoop() {
     using namespace std::chrono;
 
@@ -302,6 +570,25 @@ void BridgeServer::broadcastLoop() {
 
     while (broadcastRunning_) {
         auto now = steady_clock::now();
+
+        // Check motor status if moving (poll every 100-200ms)
+        if (motorMoving_ && kinectDevice_) {
+            auto elapsed = duration_cast<milliseconds>(now - lastMotorStatusCheck_).count();
+            if (elapsed >= 150) {  // Poll at 150ms intervals
+                MotorStatus status;
+                auto error = kinectDevice_->getMotorStatus(status);
+                if (error == DeviceError::None) {
+                    // Broadcast status to all clients
+                    broadcastMotorStatus(status);
+
+                    // Stop polling if motor stopped or at limit
+                    if (status.status == TiltStatus::Stopped || status.status == TiltStatus::AtLimit) {
+                        motorMoving_ = false;
+                    }
+                }
+                lastMotorStatusCheck_ = now;
+            }
+        }
 
         // Print stats every 10 seconds
         if (now >= nextStatsTime) {

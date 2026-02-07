@@ -108,6 +108,7 @@ Both paths consume the same KinectDevice layer. Neither depends on the other.
 │  │  KinectDevice class                                        │ │
 │  │  - Initialization and cleanup (RAII)                       │ │
 │  │  - Stream management (start/stop, callbacks)               │ │
+│  │  - Motor control (tilt, LED, status)                       │ │
 │  │  - Configuration handling                                  │ │
 │  └────────────────────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────────────┘
@@ -170,6 +171,12 @@ public:
   DeviceError startStreams();  // Start depth and RGB streaming
   DeviceError stopStreams();   // Stop streaming and clean up
   bool isStreaming() const;    // Query streaming state
+
+  // Motor control (Phase 6)
+  DeviceError setTiltAngle(double degrees);  // Set tilt (-27 to +27)
+  DeviceError getTiltAngle(double& outAngle); // Get current angle
+  DeviceError setLED(LEDState state);        // Set LED state
+  DeviceError getMotorStatus(MotorStatus& outStatus); // Get full status
 
 private:
   freenect_context* ctx_;
@@ -471,6 +478,134 @@ This is not a missing feature or bug. Chromium's WebXR backend is designed aroun
 
 **Implication:** The WebSocket bridge is the permanent solution for browser-based Kinect XR on macOS, not a workaround waiting to be replaced.
 
+### Motor Control (Phase 6)
+
+The WebSocket bridge also exposes Kinect motor control (tilt, LED, accelerometer) via the same WebSocket connection, enabling PTZ-style sensor positioning for browser-based applications.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    Browser Application                          │
+│  - Send motor.setTilt { angle: 15 }                             │
+│  - Receive motor.status { angle: 15.2, status: "STOPPED" }      │
+└───────────────────────────┬─────────────────────────────────────┘
+                            │ ws://localhost:8765/kinect
+┌───────────────────────────▼─────────────────────────────────────┐
+│  WebSocket Bridge Server                                        │
+│  - Route motor commands: motor.setTilt, motor.setLed, etc.      │
+│  - Rate limiting: 500ms minimum interval                        │
+│  - Status polling: 150ms during movement                        │
+└───────────────────────────┬─────────────────────────────────────┘
+                            │
+┌───────────────────────────▼─────────────────────────────────────┐
+│  KinectDevice Motor Methods                                     │
+│  - setTiltAngle(degrees) → clamp to [-27, 27]                   │
+│  - getTiltAngle() → current angle                               │
+│  - setLED(state) → 6 states (off, green, red, yellow, blink)    │
+│  - getMotorStatus() → angle, status, accelerometer              │
+└───────────────────────────┬─────────────────────────────────────┘
+                            │
+┌───────────────────────────▼─────────────────────────────────────┐
+│  libfreenect Motor API                                          │
+│  - freenect_set_tilt_degs() → blocking position control         │
+│  - freenect_get_tilt_state() → STOPPED/MOVING/LIMIT             │
+│  - freenect_set_led() → LED state control                       │
+│  - freenect_get_mks_accel() → gravity-corrected accelerometer   │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+#### Motor Control Data Flow
+
+```
+1. Client sends command:
+   {"type": "motor.setTilt", "angle": 15}
+
+2. Bridge server receives:
+   - Checks rate limit (500ms since last command)
+   - If violated: sends motor.error {"code": "RATE_LIMITED"}
+   - Clamps angle to [-27, 27]
+
+3. Device layer executes:
+   - kinectDevice->setTiltAngle(15)
+   - Wraps freenect_set_tilt_degs(dev, 15)
+   - Returns DeviceError status
+
+4. Status query:
+   - kinectDevice->getMotorStatus(status)
+   - Returns: angle, TiltStatus, accel X/Y/Z
+
+5. Bridge server responds:
+   - Sends motor.status to requesting client
+   - Starts status polling loop if motor is MOVING
+
+6. Status polling (during movement):
+   - Poll every 150ms in broadcastLoop()
+   - Broadcast motor.status to all clients
+   - Stop when motor reaches STOPPED or LIMIT state
+```
+
+#### Protocol Messages
+
+**Commands (client → server):**
+```json
+// Set tilt angle (-27 to +27 degrees)
+{"type": "motor.setTilt", "angle": 15}
+
+// Set LED state
+{"type": "motor.setLed", "state": "green"}
+
+// Reset to level position (0 degrees)
+{"type": "motor.reset"}
+
+// Query current status
+{"type": "motor.getStatus"}
+```
+
+**Events (server → client):**
+```json
+// Status update (sent after commands and during movement)
+{
+  "type": "motor.status",
+  "angle": 15.2,
+  "status": "STOPPED",  // or "MOVING", "LIMIT"
+  "accelerometer": {"x": 0.1, "y": 0.2, "z": 9.8}
+}
+
+// Error response
+{
+  "type": "motor.error",
+  "code": "RATE_LIMITED",
+  "message": "Minimum 500ms between tilt commands"
+}
+```
+
+#### Rate Limiting
+
+Motor commands are rate-limited to prevent hardware damage:
+
+- **Tilt commands** (`motor.setTilt`, `motor.reset`): 500ms minimum interval
+- **LED commands** (`motor.setLed`): No rate limit (stateless)
+- **Status queries** (`motor.getStatus`): No rate limit (read-only)
+
+Rate limit violations return `motor.error` with code `RATE_LIMITED` (rejected, not queued).
+
+#### Status Polling
+
+When a tilt command triggers motor movement:
+
+1. Bridge server sets `motorMoving_ = true`
+2. `broadcastLoop()` polls `getMotorStatus()` every 150ms
+3. Broadcasts `motor.status` events to all connected clients
+4. Polling stops when `status == STOPPED` or `status == LIMIT`
+
+Status polling events omit accelerometer data to reduce message size. Clients can query full status via `motor.getStatus` command.
+
+#### Hardware Constraints
+
+- **Position-based control only:** Kinect motors use absolute positioning, not continuous PTZ speed control
+- **Blocking libfreenect calls:** Motor commands block until hardware responds (typically <100ms)
+- **Angle range:** Hardware supports -27° to +27° (±31° physical limit, software clamped to safe range)
+- **Firmware loading:** Models 1473/1517 require runtime firmware upload (not needed for Model 1414)
+
 ## Security Considerations
 
 - **USB access:** Requires appropriate permissions on macOS
@@ -505,3 +640,4 @@ Architecture is platform-agnostic except:
 | 2025-04 | 0.1.0 | Initial architecture |
 | 2026-02 | 0.2.0 | Formalized during compliance restructure |
 | 2026-02-05 | 0.3.0 | Added Dual-Path Strategy section; documented Chrome macOS WebXR limitation; updated system context to show bridge and runtime as siblings |
+| 2026-02-06 | 0.4.0 | Added Motor Control section (Phase 6); documented WebSocket motor protocol, rate limiting, status polling |
