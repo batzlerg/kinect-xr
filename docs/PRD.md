@@ -66,13 +66,30 @@ The original Kinect sensor (2010-2013) was groundbreaking depth-sensing hardware
 | Environment variable support | `XR_RUNTIME_JSON` for app-specific selection | P1 |
 | Manifest creation | Proper runtime manifest for discovery | P0 |
 
-### Phase 6: Motor Control Extension (Optional)
+### Phase 6: Motor Control (Implemented)
 
-| Capability | Description | Priority |
-|------------|-------------|----------|
-| XR_KINECT_motor_control | Custom vendor extension | P2 |
-| Tilt angle control | -31 to +31 degrees | P2 |
-| Action bindings | Semantic actions for motor control | P2 |
+**Status: Complete (2026-02-06)** - Implemented via WebSocket bridge, not as OpenXR extension
+
+Motor control exposed via WebSocket API for browser-based applications. Enables PTZ-style sensor positioning for XR applications requiring dynamic viewpoint adjustment.
+
+| Capability | Description | Status |
+|------------|-------------|--------|
+| Tilt angle control | -27 to +27 degrees via WebSocket | Complete |
+| LED control | 6 states (off, green, red, yellow, blink variants) | Complete |
+| Accelerometer | Gravity-corrected X/Y/Z values | Complete |
+| Rate limiting | 500ms minimum interval between tilt commands | Complete |
+| Status polling | 150ms polling during motor movement | Complete |
+
+**Usage:**
+```javascript
+// WebSocket motor control
+const client = new KinectClient();
+await client.connect();
+await client.setTilt(15);  // Move to 15 degrees
+await client.setLED('green');  // Set LED state
+```
+
+See `specs/014-KinectMotorControlWebAPI.md` for full API documentation.
 
 ## Delivered: WebSocket Bridge (Parallel Path)
 

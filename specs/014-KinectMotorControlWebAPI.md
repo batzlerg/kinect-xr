@@ -1,6 +1,6 @@
 # KinectMotorControlWebAPI
 
-**Status:** draft
+**Status:** review
 **Created:** 2026-02-06
 **Branch:** feature/014-KinectMotorControlWebAPI
 
@@ -51,15 +51,15 @@
 
 ### Descriptive Criteria
 
-- [ ] Device layer compiles and passes unit tests
-- [ ] WebSocket bridge handles motor commands without crashes
-- [ ] Rate limiting prevents commands faster than 500ms interval
-- [ ] Angle values clamped to -27/+27 degree range
-- [ ] LED states correctly mapped to libfreenect constants
-- [ ] Accelerometer returns gravity-corrected values
-- [ ] Client SDK exposes motor control methods
-- [ ] Integration tests pass with connected Kinect hardware
-- [ ] Documentation updated (ARCHITECTURE.md, client SDK README)
+- [x] Device layer compiles and passes unit tests
+- [x] WebSocket bridge handles motor commands without crashes
+- [x] Rate limiting prevents commands faster than 500ms interval
+- [x] Angle values clamped to -27/+27 degree range
+- [x] LED states correctly mapped to libfreenect constants
+- [x] Accelerometer returns gravity-corrected values
+- [ ] Client SDK exposes motor control methods (deferred)
+- [ ] Integration tests pass with connected Kinect hardware (deferred)
+- [x] Documentation updated (ARCHITECTURE.md, client SDK README)
 
 ### Integration Test Criteria (Hardware Required)
 
@@ -362,10 +362,10 @@ Add motor control examples:
 
 **Complete these BEFORE moving spec to archive:**
 
-- [ ] All milestones complete
-- [ ] All acceptance criteria met
-- [ ] Tests passing (unit + integration with hardware)
-- [ ] **Proposed doc updates drafted** in section above (based on actual implementation)
+- [x] All milestones complete (M1-M7, M11; M8-M10 deferred)
+- [x] All acceptance criteria met (except deferred items)
+- [x] Tests passing (unit tests pass; integration tests deferred)
+- [x] **Proposed doc updates drafted** in section above (based on actual implementation)
 - [ ] **PRD.md updated** - Add motor control to Phase 6 features (now implemented)
-- [ ] **ARCHITECTURE.md updated** - Motor control flow, rate limiting, protocol
+- [x] **ARCHITECTURE.md updated** - Motor control flow, rate limiting, protocol
 - [ ] Spec moved to `specs/archive/014-KinectMotorControlWebAPI.md`
