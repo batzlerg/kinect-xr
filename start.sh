@@ -33,6 +33,12 @@ if [ ! -f "$WEB_DIR/serve.js" ]; then
     exit 1
 fi
 
+# Clean up any existing processes on our ports
+echo -e "${YELLOW}Cleaning up old processes...${NC}"
+sudo lsof -ti:8765 | xargs sudo kill -9 2>/dev/null || true
+lsof -ti:3000 | xargs kill -9 2>/dev/null || true
+sleep 1
+
 # Cleanup function
 cleanup() {
     echo ""
