@@ -57,7 +57,7 @@
 - [x] Angle values clamped to -27/+27 degree range
 - [x] LED states correctly mapped to libfreenect constants
 - [x] Accelerometer returns gravity-corrected values
-- [ ] Client SDK exposes motor control methods (deferred)
+- [x] Client SDK exposes motor control methods
 - [ ] Integration tests pass with connected Kinect hardware (deferred)
 - [x] Documentation updated (ARCHITECTURE.md, client SDK README)
 
@@ -155,8 +155,8 @@ Web Client
 
 ### Client SDK
 
-- [ ] **M8: Add motor methods to client SDK** - Implement setTilt(), setLED(), getMotorStatus(), onMotorStatus() in kinect-client.js
-- [ ] **M9: Update client SDK documentation** - Add motor control examples to README
+- [x] **M8: Add motor methods to client SDK** - Implement setTilt(), setLED(), getMotorStatus(), onMotorStatus() in kinect-client.js
+- [x] **M9: Update client SDK documentation** - Add motor control examples to README
 
 ### Testing and Documentation
 
@@ -220,10 +220,19 @@ Web Client
 - Status events omit accelerometer data (reduce message size)
 
 ### Milestone 8: Add motor methods to client SDK
-- Deferred (client SDK is optional, server implementation complete)
+- Added `setTilt()`, `setLED()`, `resetTilt()`, `getMotorStatus()` to KinectClient
+- Added `onMotorStatus`, `onMotorError` callbacks
+- Handle `motor.status` and `motor.error` message routing
+- Export `KINECT.TILT_MIN/MAX` and `LED_STATES` constants
 
 ### Milestone 9: Update client SDK documentation
-- Deferred (client SDK is optional, server implementation complete)
+- Integrated motor control into Dashboard (rgb-depth example)
+- Tilt slider with debouncing for rate limit compliance
+- LED state buttons with visual feedback
+- Accelerometer display with live updates
+- Motor status indicator (angle, movement state)
+- Renamed page to "Dashboard" as primary control surface
+- Updated landing page to feature Dashboard first
 
 ### Milestone 10: Integration tests
 - Deferred (requires WebSocket test harness, server implementation complete and testable via manual testing)
