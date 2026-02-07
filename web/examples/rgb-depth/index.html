@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Kinect XR - RGB + Depth Viewer</title>
+  <title>Kinect XR - Dashboard</title>
   <style>
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -55,6 +55,13 @@
     }
     button:hover { background: #3f37c9; }
     button:disabled { background: #555; cursor: not-allowed; }
+    button.active { background: #2d6a4f; }
+    button.led-off { background: #333; }
+    button.led-green { background: #2d6a4f; }
+    button.led-red { background: #9d0208; }
+    button.led-yellow { background: #fca311; color: #000; }
+    button.led-blink { background: linear-gradient(90deg, #2d6a4f, #333); animation: blink 0.5s infinite; }
+    @keyframes blink { 50% { opacity: 0.5; } }
     .status {
       padding: 10px;
       border-radius: 4px;
@@ -64,6 +71,17 @@
     .status.disconnected { background: #6c1d3f; }
     .status.connecting { background: #5a4a00; }
     #depthCanvas { image-rendering: pixelated; }
+    .motor-panel { display: flex; gap: 20px; flex-wrap: wrap; }
+    .motor-section { flex: 1; min-width: 200px; }
+    .motor-section h3 { margin: 0 0 10px 0; color: #4cc9f0; font-size: 14px; }
+    .tilt-control { display: flex; align-items: center; gap: 15px; }
+    .tilt-slider { flex: 1; height: 8px; -webkit-appearance: none; background: #333; border-radius: 4px; }
+    .tilt-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; background: #4361ee; border-radius: 50%; cursor: pointer; }
+    .tilt-value { font-family: monospace; font-size: 18px; min-width: 60px; text-align: right; }
+    .led-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
+    .led-buttons button { padding: 8px 12px; font-size: 12px; }
+    .accel-display { font-family: monospace; font-size: 12px; }
+    .motor-status { padding: 8px; background: #0f0f23; border-radius: 4px; font-family: monospace; font-size: 12px; margin-top: 10px; }
     .back-link {
       display: inline-block;
       margin-bottom: 10px;
@@ -75,7 +93,7 @@
 </head>
 <body>
   <a href="/" class="back-link">&larr; Back to Examples</a>
-  <h1>Kinect XR - RGB + Depth Viewer</h1>
+  <h1>Kinect XR Dashboard</h1>
 
   <div class="status disconnected" id="status">Disconnected</div>
 
@@ -96,6 +114,39 @@
       <canvas id="depthCanvas" width="640" height="480"></canvas>
       <div class="stats" id="depthStats">Waiting for frames...</div>
     </div>
+  </div>
+
+  <div class="panel" style="margin-top: 20px;">
+    <h2>Motor Control</h2>
+    <div class="motor-panel">
+      <div class="motor-section">
+        <h3>Tilt Angle</h3>
+        <div class="tilt-control">
+          <span>-27°</span>
+          <input type="range" id="tiltSlider" class="tilt-slider" min="-27" max="27" value="0" disabled>
+          <span>+27°</span>
+          <span class="tilt-value" id="tiltValue">0°</span>
+        </div>
+        <p style="margin: 10px 0 0; font-size: 12px; color: #666;">
+          <button id="resetTiltBtn" disabled style="padding: 5px 10px; font-size: 12px;">Reset to 0°</button>
+        </p>
+      </div>
+      <div class="motor-section">
+        <h3>LED State</h3>
+        <div class="led-buttons">
+          <button id="ledOff" class="led-off" disabled>Off</button>
+          <button id="ledGreen" class="led-green" disabled>Green</button>
+          <button id="ledRed" class="led-red" disabled>Red</button>
+          <button id="ledYellow" class="led-yellow" disabled>Yellow</button>
+          <button id="ledBlinkGreen" class="led-blink" disabled>Blink</button>
+        </div>
+      </div>
+      <div class="motor-section">
+        <h3>Accelerometer</h3>
+        <div class="accel-display" id="accelDisplay">X: --  Y: --  Z: --</div>
+      </div>
+    </div>
+    <div class="motor-status" id="motorStatus">Motor: Not connected</div>
   </div>
 
   <div class="panel" style="margin-top: 20px;">
@@ -219,6 +270,126 @@
     disconnectBtn.onclick = () => {
       kinect.disconnect();
     };
+
+    // Motor Control
+    const tiltSlider = document.getElementById('tiltSlider');
+    const tiltValue = document.getElementById('tiltValue');
+    const resetTiltBtn = document.getElementById('resetTiltBtn');
+    const motorStatusEl = document.getElementById('motorStatus');
+    const accelDisplay = document.getElementById('accelDisplay');
+    const ledButtons = {
+      off: document.getElementById('ledOff'),
+      green: document.getElementById('ledGreen'),
+      red: document.getElementById('ledRed'),
+      yellow: document.getElementById('ledYellow'),
+      blink_green: document.getElementById('ledBlinkGreen'),
+    };
+
+    let currentLED = 'off';
+    let tiltTimeout = null;
+
+    function enableMotorControls(enabled) {
+      tiltSlider.disabled = !enabled;
+      resetTiltBtn.disabled = !enabled;
+      Object.values(ledButtons).forEach(btn => btn.disabled = !enabled);
+    }
+
+    function updateMotorStatus(status) {
+      const angle = status.angle?.toFixed(1) ?? '--';
+      const state = status.status ?? 'UNKNOWN';
+      motorStatusEl.textContent = `Motor: ${angle}° | Status: ${state}`;
+
+      // Update slider to match actual position
+      if (status.angle !== undefined) {
+        tiltSlider.value = status.angle;
+        tiltValue.textContent = `${Math.round(status.angle)}°`;
+      }
+
+      // Update accelerometer display
+      if (status.accelerometer) {
+        const a = status.accelerometer;
+        accelDisplay.textContent = `X: ${a.x?.toFixed(2) ?? '--'}  Y: ${a.y?.toFixed(2) ?? '--'}  Z: ${a.z?.toFixed(2) ?? '--'}`;
+      }
+    }
+
+    // Motor status callback (streaming updates during movement)
+    kinect.onMotorStatus = (status) => {
+      updateMotorStatus(status);
+    };
+
+    kinect.onMotorError = (error) => {
+      motorStatusEl.textContent = `Motor Error: ${error.code} - ${error.message}`;
+    };
+
+    // Update on connection
+    const originalOnConnect = kinect.onConnect;
+    kinect.onConnect = async (capabilities) => {
+      originalOnConnect?.(capabilities);
+      enableMotorControls(true);
+
+      // Check if motor control is available
+      if (capabilities.motor) {
+        motorStatusEl.textContent = 'Motor: Querying status...';
+        try {
+          const status = await kinect.getMotorStatus();
+          updateMotorStatus(status);
+        } catch (e) {
+          motorStatusEl.textContent = `Motor: ${e.message}`;
+        }
+      } else {
+        motorStatusEl.textContent = 'Motor: Not supported by server';
+      }
+    };
+
+    const originalOnDisconnect = kinect.onDisconnect;
+    kinect.onDisconnect = () => {
+      originalOnDisconnect?.();
+      enableMotorControls(false);
+      motorStatusEl.textContent = 'Motor: Not connected';
+    };
+
+    // Tilt slider - debounced to respect rate limiting
+    tiltSlider.oninput = () => {
+      const angle = parseInt(tiltSlider.value);
+      tiltValue.textContent = `${angle}°`;
+
+      // Debounce: wait for user to stop sliding
+      clearTimeout(tiltTimeout);
+      tiltTimeout = setTimeout(async () => {
+        motorStatusEl.textContent = `Motor: Moving to ${angle}°...`;
+        try {
+          await kinect.setTilt(angle);
+        } catch (e) {
+          motorStatusEl.textContent = `Motor Error: ${e.message}`;
+        }
+      }, 100);
+    };
+
+    resetTiltBtn.onclick = async () => {
+      motorStatusEl.textContent = 'Motor: Resetting to 0°...';
+      try {
+        await kinect.resetTilt();
+        tiltSlider.value = 0;
+        tiltValue.textContent = '0°';
+      } catch (e) {
+        motorStatusEl.textContent = `Motor Error: ${e.message}`;
+      }
+    };
+
+    // LED buttons
+    Object.entries(ledButtons).forEach(([state, btn]) => {
+      btn.onclick = async () => {
+        try {
+          await kinect.setLED(state);
+          // Update active state
+          Object.values(ledButtons).forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          currentLED = state;
+        } catch (e) {
+          motorStatusEl.textContent = `LED Error: ${e.message}`;
+        }
+      };
+    });
   </script>
 </body>
 </html>
